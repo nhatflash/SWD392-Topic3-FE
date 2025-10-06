@@ -47,6 +47,22 @@ const Register = () => {
         else nextErrors.confirmPassword = '';
       }
 
+      if (name === 'dateOfBirth') {
+        if (!value) {
+          nextErrors.dateOfBirth = 'Vui lòng chọn ngày sinh';
+        } else {
+          const selectedDate = new Date(value);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
+          if (selectedDate > today) {
+            nextErrors.dateOfBirth = 'Ngày sinh không được là ngày tương lai';
+          } else {
+            nextErrors.dateOfBirth = '';
+          }
+        }
+      }
+
       return nextErrors;
     });
   };
@@ -85,6 +101,14 @@ const Register = () => {
 
     if (!dateOfBirth) {
       newErrors.dateOfBirth = 'Vui lòng chọn ngày sinh';
+    } else {
+      const selectedDate = new Date(dateOfBirth);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
+      
+      if (selectedDate > today) {
+        newErrors.dateOfBirth = 'Ngày sinh không được là ngày tương lai';
+      }
     }
 
     if (identityNumber?.trim() && !/^\d{6,20}$/.test(identityNumber.trim())) {
@@ -216,6 +240,7 @@ const Register = () => {
               name="dateOfBirth"
               value={formData.dateOfBirth}
               onChange={handleChange}
+              max={new Date().toISOString().split('T')[0]}
               className="mt-1 w-full px-3 py-2 border border-[#0028b8] rounded-md focus:outline-none focus:ring-2 focus:ring-[#0028b8]"
             />
             {errors.dateOfBirth && (

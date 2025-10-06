@@ -4,6 +4,7 @@ import Login from "./pages/Login/Login";
 import Admin from "./pages/DashBoard/Admin";
 import HomePage from "./pages/MainPage/HomePage";
 import ProfileUser from './pages/Profile/pages/ProfileUser';
+import EditProfile from './pages/Profile/pages/EditProfile';
 function App() {
 
   return (
@@ -13,8 +14,9 @@ function App() {
         <Route path="/login" element={<Login />} />
   <Route path="*" element={<Login />} />
         <Route path="/dashboard/admin" element={<Admin />} />
-  <Route path="/mainpage/HomePage" element={<HomePage />}/>
-  <Route path="/profile" element={<ProfileUser /> } />
+        <Route path="/mainpage/HomePage" element={<HomePage />}/>
+        <Route path="/profile" element={<ProfileUser /> } />
+        <Route path="/profile/edit" element={<EditProfile /> } />
       </Routes>
     </Router>
   );

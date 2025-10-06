@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { getProfile, logout as apiLogout } from '../../../services/auth';
+import { getCurrentProfile, resolveAssetUrl } from '../../../services/user';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 
@@ -12,18 +13,16 @@ const ProfileUser = () => {
 
   useEffect(() => {
     let mounted = true;
-    if (!profile?.firstName) {
-      setLoading(true);
-      getProfile()
-        .then(p => {
-          if (p && mounted) {
-            setProfile(p);
-            try { setUser(p); localStorage.setItem('user', JSON.stringify(p)); } catch {}
-          }
-        })
-        .catch(() => {})
-        .finally(() => mounted && setLoading(false));
-    }
+    setLoading(true);
+    getCurrentProfile()
+      .then(p => {
+        if (p && mounted) {
+          setProfile(p);
+          try { setUser(p); localStorage.setItem('user', JSON.stringify(p)); } catch {}
+        }
+      })
+      .catch(() => {})
+      .finally(() => mounted && setLoading(false));
     return () => { mounted = false; };
   }, []);
 
@@ -75,9 +74,23 @@ const ProfileUser = () => {
           <div className="p-6 md:p-8 flex flex-col md:flex-row gap-6">
             {/* Avatar / summary */}
             <div className="flex-shrink-0 flex items-center justify-center">
-              <div className="w-28 h-28 md:w-32 md:h-32 bg-indigo-600 text-white rounded-full flex items-center justify-center text-3xl font-semibold shadow">
-                {initials}
-              </div>
+              {(() => {
+                const raw = profile?.avatarUrl || '';
+                const resolved = resolveAssetUrl(raw);
+                const ok = resolved.startsWith('http://') || resolved.startsWith('https://') || resolved.startsWith('data:');
+                if (ok) {
+                  return (
+                    <div className="w-28 h-28 md:w-32 md:h-32 rounded-full overflow-hidden shadow-lg">
+                      <img src={resolved} alt="Avatar" className="w-full h-full object-cover" />
+                    </div>
+                  );
+                }
+                return (
+                  <div className="w-28 h-28 md:w-32 md:h-32 bg-indigo-600 text-white rounded-full flex items-center justify-center text-3xl font-semibold shadow">
+                    {initials}
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="flex-1">
@@ -87,6 +100,12 @@ const ProfileUser = () => {
                   <p className="text-sm text-gray-500">{email}</p>
                 </div>
                 <div className="flex gap-2">
+                  <button 
+                    onClick={() => navigate('/profile/edit')} 
+                    className="px-4 py-2 bg-[#0028b8] text-white rounded-md text-sm hover:bg-[#001a8b] transition-colors"
+                  >
+                    Chỉnh sửa
+                  </button>
                   <button onClick={() => navigate('/mainpage/HomePage')} className="px-4 py-2 bg-gray-100 rounded-md text-sm hover:bg-gray-200">Quay lại</button>
                   <button onClick={handleLogout} className="px-4 py-2 bg-red-600 text-white rounded-md text-sm hover:bg-red-700">Đăng xuất</button>
                 </div>

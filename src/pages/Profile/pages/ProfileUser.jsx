@@ -87,7 +87,7 @@ const ProfileUser = () => {
                   <p className="text-sm text-gray-500">{email}</p>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => navigate('/dashboard/HomePage')} className="px-4 py-2 bg-gray-100 rounded-md text-sm hover:bg-gray-200">Quay lại</button>
+                  <button onClick={() => navigate('/mainpage/HomePage')} className="px-4 py-2 bg-gray-100 rounded-md text-sm hover:bg-gray-200">Quay lại</button>
                   <button onClick={handleLogout} className="px-4 py-2 bg-red-600 text-white rounded-md text-sm hover:bg-red-700">Đăng xuất</button>
                 </div>
               </div>

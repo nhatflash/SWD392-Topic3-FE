@@ -3,6 +3,7 @@ import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
 import { login as loginUser, getAccessToken, getRefreshToken } from '../../services/auth';
 import { useAuth } from '../../context/AuthContext';
+import bgImage from '../../assets/login/login.png';
 
 const Login = () => {
 
@@ -49,7 +50,7 @@ const Login = () => {
 
             await Swal.fire({ icon: 'success', title: 'Đăng nhập thành công', showConfirmButton: false, timer: 1200 });
             
-            navigate('/dashboard/HomePage');
+            navigate('/mainpage/HomePage');
         } catch (error) {
             let errorMessage = 'Đăng nhập thất bại. Vui lòng thử lại sau';
             if (error.message) errorMessage = error.message;
@@ -61,13 +62,17 @@ const Login = () => {
     return (
         <div
             className="min-h-screen w-full flex items-center justify-center"
-            style={{ backgroundColor: '#00b894' }}
+            style={{
+                backgroundImage: `url(${bgImage})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+            }}
         >
             <form
                 onSubmit={handleLogin}
                 className="bg-white p-10 rounded-2xl shadow-2xl w-full max-w-md"
             >
-                <h2 className="text-3xl font-bold text-center mb-6 text-[#00b894]">Đăng nhập</h2>
+                <h2 className="text-3xl font-bold text-center mb-6 text-[#0028b8]">Đăng nhập</h2>
 
                 {/* Email */}
                 <div className="mb-4">
@@ -78,7 +83,7 @@ const Login = () => {
                         name="email"
                         value={formData.email}
                         onChange={handleChange}
-                        className="mt-1 w-full px-3 py-2 border border-[#00b894] rounded-md focus:outline-none focus:ring-2 focus:ring-[#00b894]"
+                        className="mt-1 w-full px-3 py-2 border border-[#0028b8] rounded-md focus:outline-none focus:ring-2 focus:ring-[#0028b8]"
                         placeholder="Nhập email"
                     />
                 </div>
@@ -93,7 +98,7 @@ const Login = () => {
                             name="password"
                             value={formData.password}
                             onChange={handleChange}
-                            className="w-full pr-12 px-3 py-2 border border-[#00b894] rounded-md focus:outline-none focus:ring-2 focus:ring-[#00b894]"
+                            className="w-full pr-12 px-3 py-2 border border-[#0028b8] rounded-md focus:outline-none focus:ring-2 focus:ring-[#0028b8]"
                             placeholder="Nhập mật khẩu"
                         />
                         <button
@@ -122,7 +127,7 @@ const Login = () => {
                 <div className="mb-6 text-right">
                     <button
                         type="button"
-                        className="text-[#00b894] hover:underline text-sm font-medium"
+                        className="text-[#0028b8] hover:underline text-sm font-medium"
                         onClick={() => {}}
                     >
                         Quên mật khẩu?
@@ -133,7 +138,7 @@ const Login = () => {
                 <button
                     type="submit"
                     disabled={loading}
-                    className="w-full bg-[#00b894] hover:bg-[#009e7d] text-white font-bold py-2 px-4 rounded-md transition-colors mb-3 disabled:opacity-60"
+                    className="w-full bg-[#0028b8] hover:bg-[#0028b8] text-white font-bold py-2 px-4 rounded-md transition-colors mb-3 disabled:opacity-60"
                 >
                     {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
                 </button>
@@ -141,7 +146,7 @@ const Login = () => {
                 
                 <button
                     type="button"
-                    className="w-full border border-[#00b894] text-[#00b894] font-bold py-2 px-4 rounded-md hover:bg-[#e0f7f1] transition-colors"
+                    className="w-full border border-[#0028b8] text-[#0028b8] font-bold py-2 px-4 rounded-md hover:bg-[#e0f7f1] transition-colors"
                     onClick={() => {
                         window.location.href = '/register';
                     }}

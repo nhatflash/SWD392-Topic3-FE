@@ -87,6 +87,16 @@ const Login = () => {
                 backgroundPosition: 'center',
             }}
         >
+            {/* Top-left brand button to go HomePage */}
+            <div className="fixed top-0 left-0 z-50 px-6 py-4">
+                <button 
+                    onClick={() => navigate('/mainpage/HomePage')} 
+                    className="text-2xl font-bold text-[#0028b8] hover:text-[#001a8b] transition-colors cursor-pointer bg-white/80 backdrop-blur-sm px-3 py-1 rounded"
+                >
+                    EV Battery Swapper
+                </button>
+            </div>
+
             <form
                 onSubmit={handleLogin}
                 className="bg-white p-10 rounded-2xl shadow-2xl w-full max-w-md"

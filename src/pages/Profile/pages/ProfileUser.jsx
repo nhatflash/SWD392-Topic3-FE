@@ -114,6 +114,15 @@ const ProfileUser = () => {
                       Vào trang Admin
                     </button>
                   )}
+
+                  {hasRole('STATION_STAFF') && (
+                    <button 
+                      onClick={() => navigate('/staff/dashboard')} 
+                      className="px-4 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700 transition-colors"
+                    >
+                      Vào trang Nhân viên
+                    </button>
+                  )}
                   <button onClick={() => navigate('/mainpage/HomePage')} className="px-4 py-2 bg-gray-100 rounded-md text-sm hover:bg-gray-200">Quay lại</button>
                   <button onClick={handleLogout} className="px-4 py-2 bg-red-600 text-white rounded-md text-sm hover:bg-red-700">Đăng xuất</button>
                 </div>

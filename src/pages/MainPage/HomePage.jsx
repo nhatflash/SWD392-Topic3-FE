@@ -83,7 +83,7 @@ const HomePage = () => {
 
           {hasRole("STATION_STAFF") && (
             <button
-              onClick={() => navigate("/staff/schedule")}
+              onClick={() => navigate("/staff/dashboard")}
               className="bg-white shadow-lg rounded-xl p-6 hover:shadow-2xl transition"
             >
               <h2 className="text-xl font-semibold text-[#0028b8]">Quản lý lịch làm việc</h2>

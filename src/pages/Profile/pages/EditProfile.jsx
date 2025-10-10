@@ -190,10 +190,12 @@ const EditProfile = () => {
   }
 
   return (
-    <div className="min-h-screen p-6 bg-gray-50 pt-24">
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-white shadow-md rounded-xl overflow-hidden">
-          <div className="p-6">
+    <div className="min-h-screen bg-gray-50 pt-24 flex">
+      {/* Content chính */}
+      <div className="flex-1 p-6 md:p-8">
+        <div className="bg-white shadow-md rounded-xl overflow-hidden w-full">
+          <div className="p-6 md:p-8">
+            {/* Header */}
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-800">Chỉnh sửa thông tin</h2>
               <button
@@ -203,14 +205,19 @@ const EditProfile = () => {
                 Hủy
               </button>
             </div>
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Avatar Section (by URL) */}
+  
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="space-y-6 w-full">
+              {/* Avatar Section */}
               <div className="space-y-3">
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
                     {avatarPreview && (avatarPreview.startsWith('http://') || avatarPreview.startsWith('https://') || avatarPreview.startsWith('data:')) ? (
-                      <img src={avatarPreview} alt="Avatar preview" className="w-full h-full object-cover" />
+                      <img
+                        src={avatarPreview}
+                        alt="Avatar preview"
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
                       <div className="text-lg font-semibold text-gray-500">
                         {formData.firstName?.[0]?.toUpperCase() || '?'}
@@ -219,23 +226,32 @@ const EditProfile = () => {
                     )}
                   </div>
                   <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Avatar URL</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Avatar URL
+                    </label>
                     <input
                       type="url"
                       name="avatarUrl"
                       value={formData.avatarUrl}
-                      onChange={(e) => { setFormData(prev => ({...prev, avatarUrl: e.target.value})); setAvatarPreview(e.target.value); if (errors.avatarUrl) setErrors(prev => ({...prev, avatarUrl: ''})); }}
+                      onChange={(e) => {
+                        setFormData(prev => ({ ...prev, avatarUrl: e.target.value }));
+                        setAvatarPreview(e.target.value);
+                        if (errors.avatarUrl) setErrors(prev => ({ ...prev, avatarUrl: '' }));
+                      }}
                       placeholder="https://example.com/avatar.jpg"
-                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#0028b8] ${errors.avatarUrl ? 'border-red-500' : 'border-gray-300'}`}
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#0028b8] ${
+                        errors.avatarUrl ? 'border-red-500' : 'border-gray-300'
+                      }`}
                     />
-                    {errors.avatarUrl && <p className="text-red-500 text-sm mt-1">{errors.avatarUrl}</p>}
+                    {errors.avatarUrl && (
+                      <p className="text-red-500 text-sm mt-1">{errors.avatarUrl}</p>
+                    )}
                   </div>
                 </div>
               </div>
-
-              {/* Form Fields */}
+  
+              {/* Name Fields */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* First Name */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Họ <span className="text-red-500">*</span>
@@ -245,17 +261,16 @@ const EditProfile = () => {
                     name="firstName"
                     value={formData.firstName}
                     onChange={handleChange}
+                    placeholder="Nhập họ"
                     className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#0028b8] ${
                       errors.firstName ? 'border-red-500' : 'border-gray-300'
                     }`}
-                    placeholder="Nhập họ"
                   />
                   {errors.firstName && (
                     <p className="text-red-500 text-sm mt-1">{errors.firstName}</p>
                   )}
                 </div>
-
-                {/* Last Name */}
+  
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Tên <span className="text-red-500">*</span>
@@ -265,17 +280,17 @@ const EditProfile = () => {
                     name="lastName"
                     value={formData.lastName}
                     onChange={handleChange}
+                    placeholder="Nhập tên"
                     className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#0028b8] ${
                       errors.lastName ? 'border-red-500' : 'border-gray-300'
                     }`}
-                    placeholder="Nhập tên"
                   />
                   {errors.lastName && (
                     <p className="text-red-500 text-sm mt-1">{errors.lastName}</p>
                   )}
                 </div>
               </div>
-
+  
               {/* Email */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -286,18 +301,18 @@ const EditProfile = () => {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
+                  placeholder="Nhập email"
                   className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#0028b8] ${
                     errors.email ? 'border-red-500' : 'border-gray-300'
                   }`}
-                  placeholder="Nhập email"
                 />
                 {errors.email && (
                   <p className="text-red-500 text-sm mt-1">{errors.email}</p>
                 )}
               </div>
-
+  
+              {/* Phone + Identity */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Phone */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Số điện thoại
@@ -307,17 +322,16 @@ const EditProfile = () => {
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
+                    placeholder="Nhập số điện thoại"
                     className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#0028b8] ${
                       errors.phone ? 'border-red-500' : 'border-gray-300'
                     }`}
-                    placeholder="Nhập số điện thoại"
                   />
                   {errors.phone && (
                     <p className="text-red-500 text-sm mt-1">{errors.phone}</p>
                   )}
                 </div>
-
-                {/* Identity Number */}
+  
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Số CMND/CCCD
@@ -327,17 +341,17 @@ const EditProfile = () => {
                     name="identityNumber"
                     value={formData.identityNumber}
                     onChange={handleChange}
+                    placeholder="Nhập số CMND/CCCD"
                     className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#0028b8] ${
                       errors.identityNumber ? 'border-red-500' : 'border-gray-300'
                     }`}
-                    placeholder="Nhập số CMND/CCCD"
                   />
                   {errors.identityNumber && (
                     <p className="text-red-500 text-sm mt-1">{errors.identityNumber}</p>
                   )}
                 </div>
               </div>
-
+  
               {/* Date of Birth */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -357,8 +371,8 @@ const EditProfile = () => {
                   <p className="text-red-500 text-sm mt-1">{errors.dateOfBirth}</p>
                 )}
               </div>
-
-              {/* Submit Button */}
+  
+              {/* Actions */}
               <div className="flex justify-end space-x-4 pt-4">
                 <button
                   type="button"
@@ -381,6 +395,7 @@ const EditProfile = () => {
       </div>
     </div>
   );
+  
 };
 
 export default EditProfile;

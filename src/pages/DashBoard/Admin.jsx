@@ -229,8 +229,8 @@ const Admin = () => {
                   <input
                     value={searchQuery}
                     onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                    placeholder="Tìm theo email, họ, tên"
-                    className="border rounded pl-9 pr-3 py-1.5 text-sm w-64"
+                    placeholder="Tìm theo email, họ, tên, CCCD hoặc số điện thoại"
+                    className="border rounded pl-9 pr-3 py-1.5 text-sm w-89"
                   />
                   <svg className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z"/>
@@ -287,7 +287,9 @@ const Admin = () => {
                         const filtered = q ? users.filter(u =>
                           (u.email||'').toLowerCase().includes(q) ||
                           (u.firstName||'').toLowerCase().includes(q) ||
-                          (u.lastName||'').toLowerCase().includes(q)
+                          (u.lastName||'').toLowerCase().includes(q) ||
+                          (u.identityNumber||'').toLowerCase().includes(q) ||
+                          (u.phone||'').toLowerCase().includes(q)
                         ) : users;
                         const start = (currentPage - 1) * pageSize;
                         const pageItems = filtered.slice(start, start + pageSize);

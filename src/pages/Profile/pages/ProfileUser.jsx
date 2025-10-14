@@ -80,7 +80,10 @@ const ProfileUser = () => {
         onToggle={() => setSidebarOpen(v => !v)}
         items={
           hasRole("ADMIN") || hasRole("STATION_STAFF")
-            ? [{ key: "profile", label: "Thông tin cá nhân" }]
+            ? [
+                { key: "profile", label: "Thông tin cá nhân" },
+                //{ key: "vehicles", label: "Phương tiện" }
+              ]
             : undefined
         }
         onBack={() => navigate("/mainpage/HomePage")}

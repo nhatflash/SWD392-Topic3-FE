@@ -24,7 +24,7 @@ const Admin = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [selectedRole, setSelectedRole] = useState('ALL'); // ALL | ADMIN | CUSTOMER | STATION_STAFF
+  const [selectedRole, setSelectedRole] = useState('ALL'); // ALL | ADMIN | CUSTOMER | STAFF
   const [userCount, setUserCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -36,19 +36,18 @@ const Admin = () => {
       setError('');
       let data = [];
       if (role && role !== 'ALL') {
-        data = await getUsersByRole(role, { page: 0, size: 10, sort: ['id','asc'] });
+        data = await getUsersByRole(role, { page: currentPage });
       } else {
-        data = await getUsers({ page: 0, size: 10, sort: ['id','asc'] });
+        data = await getUsers({ page: currentPage });
       }
       setUsers(data);
-      setCurrentPage(1);
       // also update count based on current filter (best-effort, limited by page size)
       try {
         if (role && role !== 'ALL') {
-          const all = await getUsersByRole(role, { page: 0, size: 1000, sort: ['id','asc'] });
+          const all = await getUsersByRole(role, { page: 1 });
           setUserCount(Array.isArray(all) ? all.length : 0);
         } else {
-          const all = await getUsers({ page: 0, size: 1000, sort: ['id','asc'] });
+          const all = await getUsers({ page: 1 });
           setUserCount(Array.isArray(all) ? all.length : 0);
         }
       } catch {}
@@ -61,9 +60,10 @@ const Admin = () => {
 
   const loadUserCount = async () => {
     try {
-      const all = await getUsers({ page: 0, size: 1000, sort: ['id','asc'] });
+      const all = await getUsers({ page: 1 });
       setUserCount(Array.isArray(all) ? all.length : 0);
     } catch (e) {
+      console.error('Failed to load user count:', e);
       // keep previous count on error
     }
   };
@@ -222,7 +222,7 @@ const Admin = () => {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
               <div>
                 <h2 className="text-xl font-semibold">Quản lý Users</h2>
-                <p className="text-xs text-gray-500">Tổng số user{selectedRole !== 'ALL' ? ` (${selectedRole})` : ''}: <span className="font-semibold">{userCount}</span></p>
+                <p className="text-xs text-gray-500">Tổng số user{selectedRole === 'ALL' ? '' : ` (${selectedRole})`}: <span className="font-semibold">{userCount}</span></p>
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <div className="relative">
@@ -237,8 +237,9 @@ const Admin = () => {
                   </svg>
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="text-sm text-gray-600">Role:</label>
+                  <label htmlFor="role-select" className="text-sm text-gray-600">Role:</label>
                   <select
+                    id="role-select"
                     value={selectedRole}
                     onChange={(e) => { setSelectedRole(e.target.value); loadUsers(e.target.value); }}
                     className="border rounded px-3 py-1 text-sm"
@@ -246,12 +247,16 @@ const Admin = () => {
                     <option value="ALL">Tất cả</option>
                     <option value="ADMIN">ADMIN</option>
                     <option value="CUSTOMER">CUSTOMER</option>
-                    <option value="STATION_STAFF">STATION_STAFF</option>
+                    <option value="STAFF">STAFF</option>
                   </select>
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="text-sm text-gray-600">Hiển thị:</label>
-                  <select value={pageSize} onChange={(e)=>{ setPageSize(parseInt(e.target.value)||10); setCurrentPage(1); }} className="border rounded px-2 py-1 text-sm">
+                  <label htmlFor="page-size-select" className="text-sm text-gray-600">Hiển thị:</label>
+                  <select 
+                    id="page-size-select"
+                    value={pageSize} 
+                    onChange={(e)=>{ setPageSize(Number.parseInt(e.target.value,10)||10); setCurrentPage(1); }} 
+                    className="border rounded px-2 py-1 text-sm">
                     <option>10</option>
                     <option>20</option>
                     <option>50</option>
@@ -312,10 +317,16 @@ const Admin = () => {
                             <td className="p-3 font-medium text-gray-800">{u.email}</td>
                             <td className="p-3">{u.phone || '-'}</td>
                             <td className="p-3">
-                              <span className={
-                                'inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ' +
-                                (u.role === 'ADMIN' ? 'bg-red-100 text-red-700' : u.role === 'STATION_STAFF' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700')
-                              }>
+                              <span className={`
+                                inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold
+                                ${(() => {
+                                  switch(u.role) {
+                                    case 'ADMIN': return 'bg-red-100 text-red-700';
+                                    case 'STAFF': return 'bg-blue-100 text-blue-700';
+                                    default: return 'bg-green-100 text-green-700';
+                                  }
+                                })()}
+                              `}>
                                 {u.role}
                               </span>
                             </td>

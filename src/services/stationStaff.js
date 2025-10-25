@@ -51,13 +51,27 @@ export async function getStationStaff(stationId) {
 }
 
 export async function createStaff(data) {
-  // Gửi status qua URL parameter và body qua request body
-  const params = new URLSearchParams({ status: data.status });
+  // Gửi status và gender qua URL parameter
+  const params = new URLSearchParams({ 
+    status: data.status,
+    gender: data.gender || 'MALE' // Default gender
+  });
+  
+  // Body theo CreateStationStaffRequest
   const requestData = {
     staffEmail: data.staffEmail,
+    password: data.password,
+    confirmPassword: data.confirmPassword,
+    phone: data.phone,
+    firstName: data.firstName,
+    lastName: data.lastName,
+    dateOfBirth: data.dateOfBirth,
+    identityNumber: data.identityNumber,
+    AvatarUrl: data.avatarUrl || '',
     stationName: data.stationName,
     salary: data.salary
   };
+  
   const res = await API.post(`/api/station-staff/create?${params}`, requestData);
   return res?.data?.data;
 }

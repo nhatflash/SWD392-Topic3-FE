@@ -17,9 +17,18 @@ const StaffManagementForStaff = () => {
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [formData, setFormData] = useState({
     staffEmail: '',
+    password: '',
+    confirmPassword: '',
+    phone: '',
+    firstName: '',
+    lastName: '',
+    dateOfBirth: '',
+    identityNumber: '',
+    avatarUrl: '',
     stationName: '',
     salary: 0,
-    status: 'FULL_TIME'
+    status: 'FULL_TIME',
+    gender: 'MALE'
   });
   const [updateData, setUpdateData] = useState({
     salary: 0,
@@ -95,7 +104,21 @@ const StaffManagementForStaff = () => {
       
       await createStaff(requestData);
       setShowForm(false);
-      setFormData({ staffEmail: '', stationName: '', salary: 0, status: 'FULL_TIME' });
+      setFormData({
+        staffEmail: '',
+        password: '',
+        confirmPassword: '',
+        phone: '',
+        firstName: '',
+        lastName: '',
+        dateOfBirth: '',
+        identityNumber: '',
+        avatarUrl: '',
+        stationName: '',
+        salary: 0,
+        status: 'FULL_TIME',
+        gender: 'MALE'
+      });
       await loadData();
     } catch (e) {
       setError(e?.response?.data?.message || e?.message || 'Không thể thêm nhân viên');
@@ -187,10 +210,10 @@ const StaffManagementForStaff = () => {
                   </svg>
                 </button>
               </div>
-              <form onSubmit={handleSubmit}>
+              <form onSubmit={handleSubmit} className="max-h-[70vh] overflow-y-auto pr-2">
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email nhân viên
+                    Email nhân viên *
                   </label>
                   <input
                     type="email"
@@ -198,13 +221,137 @@ const StaffManagementForStaff = () => {
                     value={formData.staffEmail}
                     onChange={(e) => setFormData({...formData, staffEmail: e.target.value})}
                     className="w-full p-2 border rounded focus:ring-2 focus:ring-[#00b894] outline-none"
-                    placeholder="Email nhân viên"
+                    placeholder="vit@gmail.com"
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Mật khẩu *
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    minLength={8}
+                    value={formData.password}
+                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#00b894] outline-none"
+                    placeholder="Tối thiểu 8 ký tự"
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Xác nhận mật khẩu *
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={formData.confirmPassword}
+                    onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#00b894] outline-none"
+                    placeholder="Nhập lại mật khẩu"
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Họ *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.firstName}
+                    onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#00b894] outline-none"
+                    placeholder="Nguyễn Văn"
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tên *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.lastName}
+                    onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#00b894] outline-none"
+                    placeholder="A"
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Ngày sinh *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.dateOfBirth}
+                    onChange={(e) => setFormData({...formData, dateOfBirth: e.target.value})}
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#00b894] outline-none"
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Giới tính *
+                  </label>
+                  <select
+                    required
+                    value={formData.gender}
+                    onChange={(e) => setFormData({...formData, gender: e.target.value})}
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#00b894] outline-none"
+                  >
+                    <option value="MALE">Nam</option>
+                    <option value="FEMALE">Nữ</option>
+                  </select>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Số điện thoại
+                  </label>
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#00b894] outline-none"
+                    placeholder="0123456789"
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    CMND/CCCD
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.identityNumber}
+                    onChange={(e) => setFormData({...formData, identityNumber: e.target.value})}
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#00b894] outline-none"
+                    placeholder="Số CMND/CCCD"
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    URL Avatar
+                  </label>
+                  <input
+                    type="url"
+                    value={formData.avatarUrl}
+                    onChange={(e) => setFormData({...formData, avatarUrl: e.target.value})}
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#00b894] outline-none"
+                    placeholder="https://example.com/avatar.jpg"
                   />
                 </div>
                 
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Trạm
+                    Trạm *
                   </label>
                   <input
                     type="text"
@@ -217,7 +364,7 @@ const StaffManagementForStaff = () => {
 
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Lương
+                    Lương *
                   </label>
                   <input
                     type="number"
@@ -226,13 +373,13 @@ const StaffManagementForStaff = () => {
                     value={formData.salary}
                     onChange={(e) => setFormData({...formData, salary: e.target.value})}
                     className="w-full p-2 border rounded focus:ring-2 focus:ring-[#00b894] outline-none"
-                    placeholder="Mức lương"
+                    placeholder="5000000"
                   />
                 </div>
 
                 <div className="mb-6">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Trạng thái làm việc
+                    Trạng thái làm việc *
                   </label>
                   <select
                     required

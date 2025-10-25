@@ -6,6 +6,7 @@ import HomePage from "./pages/MainPage/HomePage";
 import ProfileUser from './pages/Profile/pages/ProfileUser';
 import EditProfile from './pages/Profile/pages/EditProfile';
 import StaffDashboard from './pages/Staff/StaffDashboard';
+import Stations from './pages/Stations/Stations';
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/dashboard/admin" element={<Admin />} />
         <Route path="/staff/dashboard" element={<StaffDashboard />} />
+  <Route path="/stations" element={<Stations />} />
 
         {/* Profile routes */}
         <Route path="/profile" element={<ProfileUser />} />

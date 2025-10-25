@@ -5,6 +5,11 @@ export async function getAllStations() {
   return res?.data?.data ?? [];
 }
 
+export async function getOperationalStations() {
+  const res = await API.get('/api/station/operational');
+  return res?.data?.data ?? [];
+}
+
 export async function createStation(data) {
   const res = await API.post('/api/station/create', data);
   return res?.data?.data;

@@ -49,6 +49,18 @@ const Header = () => {
         >
           EV Battery Swapper
         </button>
+        <nav className="flex items-center gap-2 ml-4">
+          <button
+            onClick={() => navigate('/stations')}
+            className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#00b894] text-white rounded-full shadow hover:bg-[#009e7d] transition-colors text-sm"
+            aria-label="Trạm"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.364-6.364l-1.414 1.414M7.05 16.95l-1.414 1.414M18.364 18.364l-1.414-1.414M7.05 7.05L5.636 5.636" />
+            </svg>
+            <span className="font-medium">Trạm</span>
+          </button>
+        </nav>
       </div>
       <div className="flex items-center gap-4">
         {isAuthenticated && (

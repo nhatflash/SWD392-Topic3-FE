@@ -106,7 +106,7 @@ const Admin = () => {
     <div className="flex h-screen bg-gray-100">
       
       <aside
-        className={`bg-[#00b894] text-white p-4 transition-all duration-300 ${
+        className={`bg-[#0028b8] text-white p-4 transition-all duration-300 ${
           isSidebarOpen ? "w-64" : "w-20"
         }`}
       >
@@ -128,7 +128,7 @@ const Admin = () => {
             <li>
               <button
                 onClick={() => { setActiveView('overview'); loadUserCount(); }}
-                className="flex items-center gap-3 p-2 rounded hover:bg-[#009e7d] w-full text-left"
+                className="flex items-center gap-3 p-2 rounded hover:bg-[#335cff] w-full text-left"
               >
                 <LayoutDashboard /> {isSidebarOpen && "Dashboard"}
               </button>
@@ -136,7 +136,7 @@ const Admin = () => {
             <li>
               <button
                 onClick={() => { setActiveView('users'); loadUsers(); }}
-                className="flex items-center gap-3 p-2 rounded hover:bg-[#009e7d] w-full text-left"
+                className="flex items-center gap-3 p-2 rounded hover:bg-[#335cff] w-full text-left"
               >
                 <Users /> {isSidebarOpen && "Quản lý Users"}
               </button>
@@ -144,7 +144,7 @@ const Admin = () => {
             <li>
               <button
                 onClick={() => { setActiveView('stations'); loadStations(); }}
-                className="flex items-center gap-3 p-2 rounded hover:bg-[#009e7d] w-full text-left"
+                className="flex items-center gap-3 p-2 rounded hover:bg-[#335cff] w-full text-left"
               >
                 <Battery /> {isSidebarOpen && "Quản lý trạm"}
               </button>
@@ -152,7 +152,7 @@ const Admin = () => {
             <li>
               <button
                 onClick={() => navigate('/dashboard/admin/staff')}
-                className="flex items-center gap-3 p-2 rounded bg-[#009e7d]/20 hover:bg-[#009e7d] w-full text-left relative group"
+                className="flex items-center gap-3 p-2 rounded bg-[#335cff]/20 hover:bg-[#335cff] w-full text-left relative group"
               >
                 <div className="absolute inset-y-0 -left-1 w-1 bg-white transform scale-y-0 group-hover:scale-y-100 transition-transform"></div>
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -169,7 +169,7 @@ const Admin = () => {
             <li>
               <button
                 onClick={() => Swal.fire({ icon: 'info', title: 'Chức năng đang phát triển', text: 'Báo cáo sẽ có sớm!' })}
-                className="flex items-center gap-3 p-2 rounded hover:bg-[#009e7d] w-full text-left"
+                className="flex items-center gap-3 p-2 rounded hover:bg-[#335cff] w-full text-left"
               >
                 <FileBarChart /> {isSidebarOpen && "Báo cáo"}
               </button>
@@ -177,7 +177,7 @@ const Admin = () => {
             <li>
               <button
                 onClick={() => navigate('/mainpage/HomePage')}
-                className="flex items-center gap-3 p-2 rounded hover:bg-[#009e7d] w-full text-left"
+                className="flex items-center gap-3 p-2 rounded hover:bg-[#335cff] w-full text-left"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
@@ -237,15 +237,15 @@ const Admin = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
               <div className="bg-white p-6 rounded-xl shadow">
                 <h3 className="text-lg font-semibold">Tổng số User</h3>
-                <p className="text-3xl font-bold text-[#00b894]">{userCount}</p>
+                <p className="text-3xl font-bold text-[#0028b8]">{userCount}</p>
               </div>
               <div className="bg-white p-6 rounded-xl shadow">
                 <h3 className="text-lg font-semibold">Trạm hoạt động</h3>
-                <p className="text-3xl font-bold text-[#00b894]">{operationalStationCount}</p>
+                <p className="text-3xl font-bold text-[#0028b8]">{operationalStationCount}</p>
               </div>
               <div className="bg-white p-6 rounded-xl shadow">
                 <h3 className="text-lg font-semibold">Giao dịch hôm nay</h3>
-                <p className="text-3xl font-bold text-[#00b894]">412</p>
+                <p className="text-3xl font-bold text-[#0028b8]">412</p>
               </div>
             </div>
 
@@ -301,7 +301,7 @@ const Admin = () => {
                     <option>50</option>
                   </select>
                 </div>
-                <button onClick={() => loadUsers()} className="px-3 py-1 rounded bg-[#00b894] text-white hover:bg-[#009e7d]">Tải lại</button>
+                <button onClick={() => loadUsers()} className="px-3 py-1 rounded bg-[#0028b8] text-white hover:bg-[#0028b8]">Tải lại</button>
               </div>
             </div>
 
@@ -532,13 +532,13 @@ const Admin = () => {
                       }
                     });
                   }}
-                  className="px-3 py-1 rounded bg-[#00b894] text-white hover:bg-[#009e7d]"
+                  className="px-3 py-1 rounded bg-[#0028b8] text-white hover:bg-[#335cff]"
                 >
                   Thêm trạm
                 </button>
                 <button 
                   onClick={() => loadStations()} 
-                  className="px-3 py-1 rounded bg-[#00b894] text-white hover:bg-[#009e7d]"
+                  className="px-3 py-1 rounded bg-[#0028b8] text-white hover:bg-[#335cff]"
                 >
                   Tải lại
                 </button>

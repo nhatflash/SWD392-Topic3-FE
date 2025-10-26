@@ -73,13 +73,13 @@ const Stations = () => {
             <option value="CLOSED">CLOSED</option>
           </select>
 
-          <button className="px-4 py-2 bg-[#00b894] text-white rounded-md shadow hover:bg-[#009e7d]" onClick={load}>Tải lại</button>
+          <button className="px-4 py-2 bg-[#0028b8] text-white rounded-md shadow hover:bg-[#335cff]" onClick={load}>Tải lại</button>
         </div>
       </div>
 
       {loading && (
         <div className="flex items-center justify-center py-12">
-          <div className="w-10 h-10 border-4 border-gray-200 border-t-[#00b894] rounded-full animate-spin" />
+          <div className="w-10 h-10 border-4 border-gray-200 border-t-[#0028b8] rounded-full animate-spin" />
         </div>
       )}
 

@@ -52,7 +52,7 @@ const Header = () => {
         <nav className="flex items-center gap-2 ml-4">
           <button
             onClick={() => navigate('/stations')}
-            className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#00b894] text-white rounded-full shadow hover:bg-[#009e7d] transition-colors text-sm"
+            className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#0028b8] text-white rounded-full shadow hover:bg-[#335cff] transition-colors text-sm"
             aria-label="Trạm"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">

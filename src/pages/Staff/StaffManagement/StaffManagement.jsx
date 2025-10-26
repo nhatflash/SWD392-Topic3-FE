@@ -186,7 +186,7 @@ const StaffManagementForStaff = () => {
           {user?.role === 'STAFF' && (
             <button
               onClick={() => setShowForm(true)}
-              className="px-4 py-2 bg-[#00b894] text-white rounded-md shadow hover:bg-[#009e7d]"
+              className="px-4 py-2 bg-[#0028b8] text-white rounded-md shadow hover:bg-[#335cff]"
             >
               Thêm nhân viên
             </button>
@@ -220,7 +220,7 @@ const StaffManagementForStaff = () => {
                     required
                     value={formData.staffEmail}
                     onChange={(e) => setFormData({...formData, staffEmail: e.target.value})}
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#00b894] outline-none"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#0028b8] outline-none"
                     placeholder="vit@gmail.com"
                   />
                 </div>
@@ -235,7 +235,7 @@ const StaffManagementForStaff = () => {
                     minLength={8}
                     value={formData.password}
                     onChange={(e) => setFormData({...formData, password: e.target.value})}
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#00b894] outline-none"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#0028b8] outline-none"
                     placeholder="Tối thiểu 8 ký tự"
                   />
                 </div>
@@ -249,7 +249,7 @@ const StaffManagementForStaff = () => {
                     required
                     value={formData.confirmPassword}
                     onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#00b894] outline-none"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#0028b8] outline-none"
                     placeholder="Nhập lại mật khẩu"
                   />
                 </div>
@@ -263,7 +263,7 @@ const StaffManagementForStaff = () => {
                     required
                     value={formData.firstName}
                     onChange={(e) => setFormData({...formData, firstName: e.target.value})}
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#00b894] outline-none"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#0028b8] outline-none"
                     placeholder="Nguyễn Văn"
                   />
                 </div>
@@ -277,7 +277,7 @@ const StaffManagementForStaff = () => {
                     required
                     value={formData.lastName}
                     onChange={(e) => setFormData({...formData, lastName: e.target.value})}
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#00b894] outline-none"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#0028b8] outline-none"
                     placeholder="A"
                   />
                 </div>
@@ -291,7 +291,7 @@ const StaffManagementForStaff = () => {
                     required
                     value={formData.dateOfBirth}
                     onChange={(e) => setFormData({...formData, dateOfBirth: e.target.value})}
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#00b894] outline-none"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#0028b8] outline-none"
                   />
                 </div>
 
@@ -303,7 +303,7 @@ const StaffManagementForStaff = () => {
                     required
                     value={formData.gender}
                     onChange={(e) => setFormData({...formData, gender: e.target.value})}
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#00b894] outline-none"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#0028b8] outline-none"
                   >
                     <option value="MALE">Nam</option>
                     <option value="FEMALE">Nữ</option>
@@ -318,7 +318,7 @@ const StaffManagementForStaff = () => {
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#00b894] outline-none"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#0028b8] outline-none"
                     placeholder="0123456789"
                   />
                 </div>
@@ -331,7 +331,7 @@ const StaffManagementForStaff = () => {
                     type="text"
                     value={formData.identityNumber}
                     onChange={(e) => setFormData({...formData, identityNumber: e.target.value})}
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#00b894] outline-none"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#0028b8] outline-none"
                     placeholder="Số CMND/CCCD"
                   />
                 </div>
@@ -344,7 +344,7 @@ const StaffManagementForStaff = () => {
                     type="url"
                     value={formData.avatarUrl}
                     onChange={(e) => setFormData({...formData, avatarUrl: e.target.value})}
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#00b894] outline-none"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#0028b8] outline-none"
                     placeholder="https://example.com/avatar.jpg"
                   />
                 </div>
@@ -372,7 +372,7 @@ const StaffManagementForStaff = () => {
                     min="0"
                     value={formData.salary}
                     onChange={(e) => setFormData({...formData, salary: e.target.value})}
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#00b894] outline-none"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#0028b8] outline-none"
                     placeholder="5000000"
                   />
                 </div>
@@ -385,7 +385,7 @@ const StaffManagementForStaff = () => {
                     required
                     value={formData.status}
                     onChange={(e) => setFormData({...formData, status: e.target.value})}
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#00b894] outline-none"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#0028b8] outline-none"
                   >
                     <option value="FULL_TIME">Toàn thời gian</option>
                     <option value="PART_TIME">Bán thời gian</option>
@@ -403,7 +403,7 @@ const StaffManagementForStaff = () => {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="px-4 py-2 bg-[#00b894] text-white rounded hover:bg-[#009e7d] disabled:opacity-50"
+                    className="px-4 py-2 bg-[#0028b8] text-white rounded hover:bg-[#335cff] disabled:opacity-50"
                   >
                     {loading ? 'Đang xử lý...' : 'Thêm'}
                   </button>
@@ -440,7 +440,7 @@ const StaffManagementForStaff = () => {
                     min="0"
                     value={updateData.salary}
                     onChange={(e) => setUpdateData({...updateData, salary: e.target.value})}
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#00b894] outline-none"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#0028b8] outline-none"
                     placeholder="Mức lương"
                   />
                 </div>
@@ -453,7 +453,7 @@ const StaffManagementForStaff = () => {
                     required
                     value={updateData.status}
                     onChange={(e) => setUpdateData({...updateData, status: e.target.value})}
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#00b894] outline-none"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-[#0028b8] outline-none"
                   >
                     <option value="FULL_TIME">Toàn thời gian</option>
                     <option value="PART_TIME">Bán thời gian</option>
@@ -471,7 +471,7 @@ const StaffManagementForStaff = () => {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="px-4 py-2 bg-[#00b894] text-white rounded hover:bg-[#009e7d] disabled:opacity-50"
+                    className="px-4 py-2 bg-[#0028b8] text-white rounded hover:bg-[#335cff] disabled:opacity-50"
                   >
                     {loading ? 'Đang xử lý...' : 'Cập nhật'}
                   </button>
@@ -484,7 +484,7 @@ const StaffManagementForStaff = () => {
         {/* Staff List */}
         {loading && !showForm ? (
           <div className="flex items-center justify-center py-12">
-            <div className="w-10 h-10 border-4 border-gray-200 border-t-[#00b894] rounded-full animate-spin" />
+            <div className="w-10 h-10 border-4 border-gray-200 border-t-[#0028b8] rounded-full animate-spin" />
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

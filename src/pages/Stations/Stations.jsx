@@ -93,7 +93,7 @@ const Stations = () => {
             )}
 
             {filtered.map((s, idx) => (
-              <div key={s.stationId || idx} className="bg-white rounded-lg shadow overflow-hidden">
+              <div key={s.id || s.stationId || idx} className="bg-white rounded-lg shadow overflow-hidden">
                 <div className="relative">
                   <img src={s.imageUrl || '/placeholder.png'} alt={s.name} className="w-full h-40 object-cover" />
                   <span className={`absolute top-3 right-3 inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${s.status === 'OPERATIONAL' ? 'bg-green-100 text-green-700' : s.status === 'MAINTENANCE' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
@@ -123,6 +123,15 @@ const Stations = () => {
                       <div>Liên hệ: {s.contactPhone}</div>
                       <div>{s.contactEmail}</div>
                     </div>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t">
+                    <button
+                      onClick={() => navigate(`/stations/${s.id || s.stationId}`)}
+                      className="w-full px-4 py-2 bg-[#0028b8] text-white rounded-md hover:bg-[#335cff] transition-colors text-sm font-medium"
+                    >
+                      Xem chi tiết
+                    </button>
                   </div>
                 </div>
               </div>

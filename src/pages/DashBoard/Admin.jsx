@@ -14,6 +14,7 @@ import API, { logout as apiLogout, clearTokens } from '../../services/auth';
 import { getUsers, getUsersByRole } from '../../services/admin';
 import { resolveAssetUrl } from '../../services/user';
 import { getAllStations, createStation, updateStation, changeStationStatus } from '../../services/station';
+import { getAllBatteries, getAllBatteryModels, defineBatteryModel, updateBatteryModel } from '../../services/battery';
 
 const Admin = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -21,9 +22,12 @@ const Admin = () => {
   const { logout: contextLogout } = useAuth();
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
-  const [activeView, setActiveView] = useState('overview'); // overview | users | stations
+  const [activeView, setActiveView] = useState('overview'); // overview | users | stations | batteries
   const [users, setUsers] = useState([]);
   const [stations, setStations] = useState([]);
+  const [batteries, setBatteries] = useState([]);
+  const [batteryModels, setBatteryModels] = useState([]);
+  const [batteryTab, setBatteryTab] = useState('batteries'); // 'batteries' | 'models'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [selectedRole, setSelectedRole] = useState('ALL');
@@ -83,6 +87,24 @@ const Admin = () => {
     } catch (e) {
       setError(e?.message || 'Không thể tải danh sách trạm');
       console.error('Failed to load stations:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadBatteries = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const [batteriesData, modelsData] = await Promise.all([
+        getAllBatteries().catch(() => []),
+        getAllBatteryModels().catch(() => [])
+      ]);
+      setBatteries(batteriesData);
+      setBatteryModels(modelsData);
+    } catch (e) {
+      setError(e?.message || 'Không thể tải danh sách pin');
+      console.error('Failed to load batteries:', e);
     } finally {
       setLoading(false);
     }
@@ -168,10 +190,10 @@ const Admin = () => {
             </li>
             <li>
               <button
-                onClick={() => Swal.fire({ icon: 'info', title: 'Chức năng đang phát triển', text: 'Báo cáo sẽ có sớm!' })}
+                onClick={() => { setActiveView('batteries'); loadBatteries(); }}
                 className="flex items-center gap-3 p-2 rounded hover:bg-[#335cff] w-full text-left"
               >
-                <FileBarChart /> {isSidebarOpen && "Báo cáo"}
+                <FileBarChart /> {isSidebarOpen && "Pin"}
               </button>
             </li>
             <li>
@@ -441,71 +463,133 @@ const Admin = () => {
                     Swal.fire({
                       title: 'Thêm trạm mới',
                       html: `
-                        <div class="space-y-3">
-                          <input id="name" class="w-full px-3 py-2 border rounded" placeholder="Tên trạm" />
-                          <input id="address" class="w-full px-3 py-2 border rounded" placeholder="Địa chỉ" />
-                          <input id="totalCapacity" type="number" class="w-full px-3 py-2 border rounded" placeholder="Sức chứa pin" />
-                          <input id="totalSwapBays" type="number" class="w-full px-3 py-2 border rounded" placeholder="Số vị trí đổi pin" />
-                          <input id="openingTime" class="w-full px-3 py-2 border rounded" placeholder="Giờ mở cửa (HH:mm)" />
-                          <input id="closingTime" class="w-full px-3 py-2 border rounded" placeholder="Giờ đóng cửa (HH:mm)" />
-                          <input id="contactPhone" class="w-full px-3 py-2 border rounded" placeholder="Số điện thoại liên hệ" />
-                          <input id="contactEmail" class="w-full px-3 py-2 border rounded" placeholder="Email liên hệ" />
-                          <textarea id="description" class="w-full px-3 py-2 border rounded" placeholder="Mô tả"></textarea>
-                          <input id="imageUrl" class="w-full px-3 py-2 border rounded" placeholder="URL hình ảnh" />
+                        <div class="space-y-3 text-left">
+                          <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Tên trạm *</label>
+                            <input id="name" class="w-full px-3 py-2 border rounded" placeholder="VD: Trạm Quận 1" />
+                          </div>
+                          <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Địa chỉ *</label>
+                            <input id="address" class="w-full px-3 py-2 border rounded" placeholder="VD: 123 Nguyễn Huệ, Q1, TP.HCM" />
+                          </div>
+                          <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Sức chứa pin (số lượng) *</label>
+                            <input id="totalCapacity" type="number" min="1" class="w-full px-3 py-2 border rounded" placeholder="VD: 100" />
+                          </div>
+                          <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Số vị trí đổi pin *</label>
+                            <input id="totalSwapBays" type="number" min="1" class="w-full px-3 py-2 border rounded" placeholder="VD: 5" />
+                          </div>
+                          <div class="grid grid-cols-2 gap-2">
+                            <div>
+                              <label class="block text-sm font-medium text-gray-700 mb-1">Giờ mở cửa *</label>
+                              <input id="openingTime" class="w-full px-3 py-2 border rounded" placeholder="08:00" />
+                            </div>
+                            <div>
+                              <label class="block text-sm font-medium text-gray-700 mb-1">Giờ đóng cửa *</label>
+                              <input id="closingTime" class="w-full px-3 py-2 border rounded" placeholder="22:00" />
+                            </div>
+                          </div>
+                          <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Số điện thoại *</label>
+                            <input id="contactPhone" class="w-full px-3 py-2 border rounded" placeholder="0123456789 hoặc +84123456789" />
+                          </div>
+                          <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Email liên hệ *</label>
+                            <input id="contactEmail" type="email" class="w-full px-3 py-2 border rounded" placeholder="station@example.com" />
+                          </div>
+                          <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Mô tả *</label>
+                            <textarea id="description" rows="2" class="w-full px-3 py-2 border rounded" placeholder="Mô tả ngắn gọn về trạm"></textarea>
+                          </div>
+                          <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">URL hình ảnh *</label>
+                            <input id="imageUrl" type="url" class="w-full px-3 py-2 border rounded" placeholder="https://example.com/image.jpg" />
+                          </div>
                         </div>
                       `,
                       showCancelButton: true,
                       confirmButtonText: 'Thêm',
                       cancelButtonText: 'Hủy',
+                      width: '600px',
                       preConfirm: () => {
                         try {
-                          const data = {
-                            name: document.getElementById('name').value.trim(),
-                            address: document.getElementById('address').value.trim(),
-                            totalCapacity: Number.parseInt(document.getElementById('totalCapacity').value, 10),
-                            totalSwapBays: Number.parseInt(document.getElementById('totalSwapBays').value, 10),
-                            openingTime: document.getElementById('openingTime').value.trim(),
-                            closingTime: document.getElementById('closingTime').value.trim(),
-                            contactPhone: document.getElementById('contactPhone').value.trim(),
-                            contactEmail: document.getElementById('contactEmail').value.trim(),
-                            description: document.getElementById('description').value.trim(),
-                            imageUrl: document.getElementById('imageUrl').value.trim()
-                          };
+                          const name = document.getElementById('name').value.trim();
+                          const address = document.getElementById('address').value.trim();
+                          const totalCapacity = Number.parseInt(document.getElementById('totalCapacity').value, 10);
+                          const totalSwapBays = Number.parseInt(document.getElementById('totalSwapBays').value, 10);
+                          const openingTime = document.getElementById('openingTime').value.trim();
+                          const closingTime = document.getElementById('closingTime').value.trim();
+                          const contactPhone = document.getElementById('contactPhone').value.trim();
+                          const contactEmail = document.getElementById('contactEmail').value.trim();
+                          const description = document.getElementById('description').value.trim();
+                          const imageUrl = document.getElementById('imageUrl').value.trim();
 
                           // Validate empty fields
-                          if (!data.name || !data.address || !data.totalCapacity || !data.totalSwapBays || 
-                              !data.openingTime || !data.closingTime || !data.contactPhone || 
-                              !data.contactEmail || !data.description || !data.imageUrl) {
-                            Swal.showValidationMessage('Vui lòng điền đầy đủ thông tin');
+                          if (!name) {
+                            Swal.showValidationMessage('Vui lòng nhập tên trạm');
+                            return false;
+                          }
+                          if (!address) {
+                            Swal.showValidationMessage('Vui lòng nhập địa chỉ');
+                            return false;
+                          }
+                          if (!description) {
+                            Swal.showValidationMessage('Vui lòng nhập mô tả');
+                            return false;
+                          }
+                          if (!imageUrl) {
+                            Swal.showValidationMessage('Vui lòng nhập URL hình ảnh');
+                            return false;
+                          }
+
+                          // Validate numeric fields
+                          if (Number.isNaN(totalCapacity) || totalCapacity <= 0) {
+                            Swal.showValidationMessage('Sức chứa pin phải là số nguyên dương');
+                            return false;
+                          }
+                          if (Number.isNaN(totalSwapBays) || totalSwapBays <= 0) {
+                            Swal.showValidationMessage('Số vị trí đổi pin phải là số nguyên dương');
                             return false;
                           }
 
                           // Validate time format (HH:mm)
                           const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
-                          if (!timeRegex.test(data.openingTime) || !timeRegex.test(data.closingTime)) {
-                            Swal.showValidationMessage('Giờ mở cửa và đóng cửa phải theo định dạng HH:mm (ví dụ: 08:00)');
+                          if (!timeRegex.test(openingTime)) {
+                            Swal.showValidationMessage('Giờ mở cửa phải theo định dạng HH:mm (VD: 08:00)');
                             return false;
                           }
-
-                          // Validate numeric fields
-                          if (data.totalCapacity <= 0 || data.totalSwapBays <= 0) {
-                            Swal.showValidationMessage('Sức chứa và số vị trí đổi pin phải lớn hơn 0');
+                          if (!timeRegex.test(closingTime)) {
+                            Swal.showValidationMessage('Giờ đóng cửa phải theo định dạng HH:mm (VD: 22:00)');
                             return false;
                           }
 
                           // Validate email format
                           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                          if (!emailRegex.test(data.contactEmail)) {
-                            Swal.showValidationMessage('Email liên hệ không hợp lệ');
+                          if (!emailRegex.test(contactEmail)) {
+                            Swal.showValidationMessage('Email không hợp lệ');
                             return false;
                           }
 
                           // Validate phone format (allow +84 or 0 prefix)
                           const phoneRegex = /^(\+84|0)\d{9,10}$/;
-                          if (!phoneRegex.test(data.contactPhone)) {
-                            Swal.showValidationMessage('Số điện thoại không hợp lệ (phải bắt đầu bằng +84 hoặc 0)');
+                          if (!phoneRegex.test(contactPhone)) {
+                            Swal.showValidationMessage('Số điện thoại không hợp lệ (phải bắt đầu bằng 0 hoặc +84)');
                             return false;
                           }
+
+                          const data = {
+                            name,
+                            address,
+                            totalCapacity,
+                            totalSwapBays,
+                            openingTime,
+                            closingTime,
+                            contactPhone,
+                            contactEmail,
+                            description,
+                            imageUrl
+                          };
 
                           console.log('Creating station with data:', data);
                           return createStation(data)
@@ -515,7 +599,13 @@ const Admin = () => {
                             })
                             .catch(error => {
                               console.error('Failed to create station:', error);
-                              const errorMessage = error?.response?.data?.message || error?.message || 'Có lỗi xảy ra khi tạo trạm';
+                              let errorMessage = error?.response?.data?.message || error?.message || 'Có lỗi xảy ra khi tạo trạm';
+                              
+                              // Handle duplicate name error specifically
+                              if (errorMessage.includes('already exists')) {
+                                errorMessage = `Tên trạm "${name}" đã tồn tại. Vui lòng chọn tên khác.`;
+                              }
+                              
                               console.log('Error message:', errorMessage);
                               Swal.showValidationMessage(errorMessage);
                               return false;
@@ -664,63 +754,133 @@ const Admin = () => {
                                 Swal.fire({
                                   title: 'Chỉnh sửa trạm',
                                   html: `
-                                    <div class="space-y-3">
-                                      <input id="name" class="w-full px-3 py-2 border rounded" placeholder="Tên trạm" value="${station.name || ''}" />
-                                      <input id="address" class="w-full px-3 py-2 border rounded" placeholder="Địa chỉ" value="${station.address || ''}" />
-                                      <input id="totalCapacity" type="number" class="w-full px-3 py-2 border rounded" placeholder="Sức chứa pin" value="${station.totalCapacity || ''}" />
-                                      <input id="totalSwapBays" type="number" class="w-full px-3 py-2 border rounded" placeholder="Số vị trí đổi pin" value="${station.totalSwapBays || ''}" />
-                                      <input id="openingTime" class="w-full px-3 py-2 border rounded" placeholder="Giờ mở cửa (HH:mm)" value="${station.openingTime || ''}" />
-                                      <input id="closingTime" class="w-full px-3 py-2 border rounded" placeholder="Giờ đóng cửa (HH:mm)" value="${station.closingTime || ''}" />
-                                      <input id="contactPhone" class="w-full px-3 py-2 border rounded" placeholder="Số điện thoại liên hệ" value="${station.contactPhone || ''}" />
-                                      <input id="contactEmail" class="w-full px-3 py-2 border rounded" placeholder="Email liên hệ" value="${station.contactEmail || ''}" />
-                                      <textarea id="description" class="w-full px-3 py-2 border rounded" placeholder="Mô tả">${station.description || ''}</textarea>
-                                      <input id="imageUrl" class="w-full px-3 py-2 border rounded" placeholder="URL hình ảnh" value="${station.imageUrl || ''}" />
+                                    <div class="space-y-3 text-left">
+                                      <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Tên trạm *</label>
+                                        <input id="name" class="w-full px-3 py-2 border rounded" placeholder="VD: Trạm Quận 1" value="${station.name || ''}" />
+                                      </div>
+                                      <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Địa chỉ *</label>
+                                        <input id="address" class="w-full px-3 py-2 border rounded" placeholder="VD: 123 Nguyễn Huệ, Q1" value="${station.address || ''}" />
+                                      </div>
+                                      <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Sức chứa pin *</label>
+                                        <input id="totalCapacity" type="number" min="1" class="w-full px-3 py-2 border rounded" value="${station.totalCapacity || ''}" />
+                                      </div>
+                                      <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Số vị trí đổi pin *</label>
+                                        <input id="totalSwapBays" type="number" min="1" class="w-full px-3 py-2 border rounded" value="${station.totalSwapBays || ''}" />
+                                      </div>
+                                      <div class="grid grid-cols-2 gap-2">
+                                        <div>
+                                          <label class="block text-sm font-medium text-gray-700 mb-1">Giờ mở cửa *</label>
+                                          <input id="openingTime" class="w-full px-3 py-2 border rounded" placeholder="08:00" value="${station.openingTime || ''}" />
+                                        </div>
+                                        <div>
+                                          <label class="block text-sm font-medium text-gray-700 mb-1">Giờ đóng cửa *</label>
+                                          <input id="closingTime" class="w-full px-3 py-2 border rounded" placeholder="22:00" value="${station.closingTime || ''}" />
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Số điện thoại *</label>
+                                        <input id="contactPhone" class="w-full px-3 py-2 border rounded" placeholder="0123456789" value="${station.contactPhone || ''}" />
+                                      </div>
+                                      <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Email liên hệ *</label>
+                                        <input id="contactEmail" type="email" class="w-full px-3 py-2 border rounded" value="${station.contactEmail || ''}" />
+                                      </div>
+                                      <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Mô tả *</label>
+                                        <textarea id="description" rows="2" class="w-full px-3 py-2 border rounded">${station.description || ''}</textarea>
+                                      </div>
+                                      <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">URL hình ảnh *</label>
+                                        <input id="imageUrl" type="url" class="w-full px-3 py-2 border rounded" value="${station.imageUrl || ''}" />
+                                      </div>
                                     </div>
                                   `,
                                   showCancelButton: true,
                                   confirmButtonText: 'Lưu',
                                   cancelButtonText: 'Hủy',
+                                  width: '600px',
                                   preConfirm: () => {
                                     try {
-                                      const data = {
-                                        name: document.getElementById('name').value.trim(),
-                                        address: document.getElementById('address').value.trim(),
-                                        totalCapacity: Number.parseInt(document.getElementById('totalCapacity').value, 10),
-                                        totalSwapBays: Number.parseInt(document.getElementById('totalSwapBays').value, 10),
-                                        openingTime: document.getElementById('openingTime').value.trim(),
-                                        closingTime: document.getElementById('closingTime').value.trim(),
-                                        contactPhone: document.getElementById('contactPhone').value.trim(),
-                                        contactEmail: document.getElementById('contactEmail').value.trim(),
-                                        description: document.getElementById('description').value.trim(),
-                                        imageUrl: document.getElementById('imageUrl').value.trim()
-                                      };
+                                      const name = document.getElementById('name').value.trim();
+                                      const address = document.getElementById('address').value.trim();
+                                      const totalCapacity = Number.parseInt(document.getElementById('totalCapacity').value, 10);
+                                      const totalSwapBays = Number.parseInt(document.getElementById('totalSwapBays').value, 10);
+                                      const openingTime = document.getElementById('openingTime').value.trim();
+                                      const closingTime = document.getElementById('closingTime').value.trim();
+                                      const contactPhone = document.getElementById('contactPhone').value.trim();
+                                      const contactEmail = document.getElementById('contactEmail').value.trim();
+                                      const description = document.getElementById('description').value.trim();
+                                      const imageUrl = document.getElementById('imageUrl').value.trim();
       
-                                      if (!data.name || !data.address || !data.totalCapacity || !data.totalSwapBays || 
-                                          !data.openingTime || !data.closingTime || !data.contactPhone || 
-                                          !data.contactEmail || !data.description || !data.imageUrl) {
-                                        Swal.showValidationMessage('Vui lòng điền đầy đủ thông tin');
+                                      // Validate empty fields
+                                      if (!name) {
+                                        Swal.showValidationMessage('Vui lòng nhập tên trạm');
+                                        return false;
+                                      }
+                                      if (!address) {
+                                        Swal.showValidationMessage('Vui lòng nhập địa chỉ');
+                                        return false;
+                                      }
+                                      if (!description) {
+                                        Swal.showValidationMessage('Vui lòng nhập mô tả');
+                                        return false;
+                                      }
+                                      if (!imageUrl) {
+                                        Swal.showValidationMessage('Vui lòng nhập URL hình ảnh');
                                         return false;
                                       }
       
                                       // Validate numeric fields
-                                      if (data.totalCapacity <= 0 || data.totalSwapBays <= 0) {
-                                        Swal.showValidationMessage('Sức chứa và số vị trí đổi pin phải lớn hơn 0');
+                                      if (Number.isNaN(totalCapacity) || totalCapacity <= 0) {
+                                        Swal.showValidationMessage('Sức chứa pin phải là số nguyên dương');
+                                        return false;
+                                      }
+                                      if (Number.isNaN(totalSwapBays) || totalSwapBays <= 0) {
+                                        Swal.showValidationMessage('Số vị trí đổi pin phải là số nguyên dương');
+                                        return false;
+                                      }
+
+                                      // Validate time format
+                                      const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+                                      if (!timeRegex.test(openingTime)) {
+                                        Swal.showValidationMessage('Giờ mở cửa phải theo định dạng HH:mm (VD: 08:00)');
+                                        return false;
+                                      }
+                                      if (!timeRegex.test(closingTime)) {
+                                        Swal.showValidationMessage('Giờ đóng cửa phải theo định dạng HH:mm (VD: 22:00)');
                                         return false;
                                       }
       
                                       // Validate email format
                                       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                                      if (!emailRegex.test(data.contactEmail)) {
-                                        Swal.showValidationMessage('Email liên hệ không hợp lệ');
+                                      if (!emailRegex.test(contactEmail)) {
+                                        Swal.showValidationMessage('Email không hợp lệ');
                                         return false;
                                       }
       
                                       // Validate phone format (allow +84 or 0 prefix)
                                       const phoneRegex = /^(\+84|0)\d{9,10}$/;
-                                      if (!phoneRegex.test(data.contactPhone)) {
-                                        Swal.showValidationMessage('Số điện thoại không hợp lệ (phải bắt đầu bằng +84 hoặc 0)');
+                                      if (!phoneRegex.test(contactPhone)) {
+                                        Swal.showValidationMessage('Số điện thoại không hợp lệ (phải bắt đầu bằng 0 hoặc +84)');
                                         return false;
                                       }
+
+                                      const data = {
+                                        name,
+                                        address,
+                                        totalCapacity,
+                                        totalSwapBays,
+                                        openingTime,
+                                        closingTime,
+                                        contactPhone,
+                                        contactEmail,
+                                        description,
+                                        imageUrl
+                                      };
 
                                     if (!stationId) {
                                       console.error('Station object:', station);
@@ -736,7 +896,13 @@ const Admin = () => {
                                       })
                                       .catch(error => {
                                         console.error('Failed to update station:', error);
-                                        const errorMessage = error?.response?.data?.message || error?.message || 'Có lỗi xảy ra khi cập nhật trạm';
+                                        let errorMessage = error?.response?.data?.message || error?.message || 'Có lỗi xảy ra khi cập nhật trạm';
+                                        
+                                        // Handle duplicate name error
+                                        if (errorMessage.includes('already exists')) {
+                                          errorMessage = `Tên trạm "${name}" đã tồn tại. Vui lòng chọn tên khác.`;
+                                        }
+                                        
                                         console.log('Error message:', errorMessage);
                                         Swal.showValidationMessage(errorMessage);
                                         return false;
@@ -770,6 +936,349 @@ const Admin = () => {
                     )}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Batteries Management View */}
+        {activeView === 'batteries' && (
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-xl font-bold mb-4">Quản lý Pin</h2>
+            
+            {/* Tabs */}
+            <div className="mb-6 border-b border-gray-200">
+              <nav className="-mb-px flex gap-6">
+                <button
+                  onClick={() => setBatteryTab('batteries')}
+                  className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                    batteryTab === 'batteries'
+                      ? 'border-[#0028b8] text-[#0028b8]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Danh sách Pin ({batteries.length})
+                </button>
+                <button
+                  onClick={() => setBatteryTab('models')}
+                  className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                    batteryTab === 'models'
+                      ? 'border-[#0028b8] text-[#0028b8]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Battery Models ({batteryModels.length})
+                </button>
+              </nav>
+            </div>
+
+            {/* Batteries List Tab */}
+            {batteryTab === 'batteries' && (
+              <div>
+                {loading ? (
+                  <div className="flex justify-center py-8">
+                    <div className="w-10 h-10 border-4 border-gray-200 border-t-[#00b894] rounded-full animate-spin" />
+                  </div>
+                ) : batteries.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                    </svg>
+                    <p>Chưa có pin nào trong hệ thống</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số serial</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạm hiện tại</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dung lượng</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mức sạc</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Giá thuê</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {batteries.map((battery) => (
+                          <tr key={battery.batteryId} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 whitespace-nowrap font-mono text-sm">{battery.serialNumber}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm">{battery.type}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm">{battery.currentStationName || 'N/A'}</td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                                battery.status === 'FULL' ? 'bg-green-100 text-green-800' :
+                                battery.status === 'IN_USE' ? 'bg-blue-100 text-blue-800' :
+                                battery.status === 'CHARGING' ? 'bg-yellow-100 text-yellow-800' :
+                                battery.status === 'MAINTENANCE' ? 'bg-orange-100 text-orange-800' :
+                                battery.status === 'FAULTY' ? 'bg-red-100 text-red-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {battery.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm">{battery.capacityKwh} kWh</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm">{battery.currentChargePercentage || 0}%</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-green-600">
+                              {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(battery.rentalPrice || 0)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Battery Models Tab */}
+            {batteryTab === 'models' && (
+              <div>
+                <div className="mb-4 flex justify-end">
+                  <button
+                    onClick={() => {
+                      Swal.fire({
+                        title: 'Tạo Battery Model mới',
+                        html: `
+                          <div class="space-y-3 text-left">
+                            <div>
+                              <label class="block text-sm font-medium text-gray-700 mb-1">Loại pin (Type) *</label>
+                              <input id="modelType" class="w-full px-3 py-2 border rounded" placeholder="VD: LFP-50" />
+                            </div>
+                            <div>
+                              <label class="block text-sm font-medium text-gray-700 mb-1">Nhà sản xuất *</label>
+                              <input id="manufacturer" class="w-full px-3 py-2 border rounded" placeholder="VD: CATL" />
+                            </div>
+                            <div>
+                              <label class="block text-sm font-medium text-gray-700 mb-1">Công nghệ pin *</label>
+                              <input id="chemistry" class="w-full px-3 py-2 border rounded" placeholder="VD: Lithium Iron Phosphate" />
+                            </div>
+                            <div>
+                              <label class="block text-sm font-medium text-gray-700 mb-1">Trọng lượng (kg) *</label>
+                              <input id="weightKg" type="number" min="1" class="w-full px-3 py-2 border rounded" placeholder="VD: 300" />
+                            </div>
+                            <div>
+                              <label class="block text-sm font-medium text-gray-700 mb-1">Bảo hành (tháng)</label>
+                              <input id="warrantyMonths" type="number" min="0" class="w-full px-3 py-2 border rounded" placeholder="VD: 60" />
+                            </div>
+                            <div>
+                              <label class="block text-sm font-medium text-gray-700 mb-1">Công suất sạc tối đa (kWh)</label>
+                              <input id="maxChargePowerKwh" type="number" min="0" class="w-full px-3 py-2 border rounded" placeholder="VD: 100" />
+                            </div>
+                            <div>
+                              <label class="block text-sm font-medium text-gray-700 mb-1">Ngưỡng SoH tối thiểu (%)</label>
+                              <input id="minSohThreshold" type="number" min="0" max="100" step="0.1" class="w-full px-3 py-2 border rounded" placeholder="VD: 80" />
+                            </div>
+                          </div>
+                        `,
+                        width: '600px',
+                        showCancelButton: true,
+                        confirmButtonText: 'Tạo model',
+                        cancelButtonText: 'Hủy',
+                        preConfirm: async () => {
+                          const type = document.getElementById('modelType').value.trim();
+                          const manufacturer = document.getElementById('manufacturer').value.trim();
+                          const chemistry = document.getElementById('chemistry').value.trim();
+                          const weightKg = Number.parseInt(document.getElementById('weightKg').value, 10);
+                          const warrantyMonths = Number.parseInt(document.getElementById('warrantyMonths').value, 10) || 0;
+                          const maxChargePowerKwh = Number.parseInt(document.getElementById('maxChargePowerKwh').value, 10) || 0;
+                          const minSohThreshold = Number(document.getElementById('minSohThreshold').value) || null;
+
+                          if (!type) {
+                            Swal.showValidationMessage('Vui lòng nhập loại pin');
+                            return false;
+                          }
+                          if (!manufacturer) {
+                            Swal.showValidationMessage('Vui lòng nhập nhà sản xuất');
+                            return false;
+                          }
+                          if (!chemistry) {
+                            Swal.showValidationMessage('Vui lòng nhập công nghệ pin');
+                            return false;
+                          }
+                          if (Number.isNaN(weightKg) || weightKg <= 0) {
+                            Swal.showValidationMessage('Trọng lượng phải là số dương');
+                            return false;
+                          }
+
+                          const payload = {
+                            type,
+                            manufacturer,
+                            chemistry,
+                            weightKg,
+                            warrantyMonths,
+                            maxChargePowerKwh,
+                            minSohThreshold
+                          };
+
+                          return defineBatteryModel(payload)
+                            .then(() => {
+                              loadBatteries();
+                              return true;
+                            })
+                            .catch(error => {
+                              console.error('Failed to create battery model:', error);
+                              let errorMsg = error?.response?.data?.message || error?.message || 'Có lỗi xảy ra';
+                              if (errorMsg.includes('already exists')) {
+                                errorMsg = `Loại pin "${type}" đã tồn tại`;
+                              }
+                              Swal.showValidationMessage(errorMsg);
+                              return false;
+                            });
+                        }
+                      }).then(result => {
+                        if (result.isConfirmed) {
+                          Swal.fire('Thành công!', 'Model pin mới đã được tạo', 'success');
+                        }
+                      });
+                    }}
+                    className="px-4 py-2 bg-[#0028b8] text-white rounded-md hover:bg-[#001a8b] transition-colors"
+                  >
+                    + Tạo model mới
+                  </button>
+                </div>
+
+                {loading ? (
+                  <div className="flex justify-center py-8">
+                    <div className="w-10 h-10 border-4 border-gray-200 border-t-[#00b894] rounded-full animate-spin" />
+                  </div>
+                ) : batteryModels.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <p>Chưa có model nào</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Manufacturer</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Chemistry</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Weight (kg)</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Warranty (months)</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Max charge (kWh)</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Min SoH (%)</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {batteryModels.map((model) => (
+                          <tr key={model.modelId || model.batteryModelId} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 whitespace-nowrap font-mono text-sm">{model.type}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm">{model.manufacturer}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm">{model.chemistry}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm">{model.weightKg}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm">{model.warrantyMonths || 0}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm">{model.maxChargePowerKwh || 0}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm">{model.minSohThreshold || 'N/A'}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm">
+                              <button
+                                onClick={() => {
+                                  Swal.fire({
+                                    title: 'Cập nhật Battery Model',
+                                    html: `
+                                      <div class="space-y-3 text-left">
+                                        <div>
+                                          <label class="block text-sm font-medium text-gray-700 mb-1">Loại pin (Type) *</label>
+                                          <input id="modelType" class="w-full px-3 py-2 border rounded bg-gray-100" value="${model.type}" readonly />
+                                          <small class="text-gray-500">Type không thể sửa</small>
+                                        </div>
+                                        <div>
+                                          <label class="block text-sm font-medium text-gray-700 mb-1">Nhà sản xuất *</label>
+                                          <input id="manufacturer" class="w-full px-3 py-2 border rounded" value="${model.manufacturer || ''}" />
+                                        </div>
+                                        <div>
+                                          <label class="block text-sm font-medium text-gray-700 mb-1">Công nghệ pin *</label>
+                                          <input id="chemistry" class="w-full px-3 py-2 border rounded" value="${model.chemistry || ''}" />
+                                        </div>
+                                        <div>
+                                          <label class="block text-sm font-medium text-gray-700 mb-1">Trọng lượng (kg) *</label>
+                                          <input id="weightKg" type="number" min="1" class="w-full px-3 py-2 border rounded" value="${model.weightKg || ''}" />
+                                        </div>
+                                        <div>
+                                          <label class="block text-sm font-medium text-gray-700 mb-1">Bảo hành (tháng)</label>
+                                          <input id="warrantyMonths" type="number" min="0" class="w-full px-3 py-2 border rounded" value="${model.warrantyMonths || 0}" />
+                                        </div>
+                                        <div>
+                                          <label class="block text-sm font-medium text-gray-700 mb-1">Công suất sạc tối đa (kWh)</label>
+                                          <input id="maxChargePowerKwh" type="number" min="0" class="w-full px-3 py-2 border rounded" value="${model.maxChargePowerKwh || 0}" />
+                                        </div>
+                                        <div>
+                                          <label class="block text-sm font-medium text-gray-700 mb-1">Ngưỡng SoH tối thiểu (%)</label>
+                                          <input id="minSohThreshold" type="number" min="0" max="100" step="0.1" class="w-full px-3 py-2 border rounded" value="${model.minSohThreshold || ''}" />
+                                        </div>
+                                      </div>
+                                    `,
+                                    width: '600px',
+                                    showCancelButton: true,
+                                    confirmButtonText: 'Cập nhật',
+                                    cancelButtonText: 'Hủy',
+                                    preConfirm: async () => {
+                                      const manufacturer = document.getElementById('manufacturer').value.trim();
+                                      const chemistry = document.getElementById('chemistry').value.trim();
+                                      const weightKg = Number.parseInt(document.getElementById('weightKg').value, 10);
+                                      const warrantyMonths = Number.parseInt(document.getElementById('warrantyMonths').value, 10) || 0;
+                                      const maxChargePowerKwh = Number.parseInt(document.getElementById('maxChargePowerKwh').value, 10) || 0;
+                                      const minSohThreshold = Number(document.getElementById('minSohThreshold').value) || null;
+
+                                      if (!manufacturer) {
+                                        Swal.showValidationMessage('Vui lòng nhập nhà sản xuất');
+                                        return false;
+                                      }
+                                      if (!chemistry) {
+                                        Swal.showValidationMessage('Vui lòng nhập công nghệ pin');
+                                        return false;
+                                      }
+                                      if (Number.isNaN(weightKg) || weightKg <= 0) {
+                                        Swal.showValidationMessage('Trọng lượng phải là số dương');
+                                        return false;
+                                      }
+
+                                      const payload = {
+                                        manufacturer,
+                                        chemistry,
+                                        weightKg,
+                                        warrantyMonths,
+                                        maxChargePowerKwh,
+                                        minSohThreshold
+                                      };
+
+                                      const modelId = model.modelId || model.batteryModelId || model.id;
+                                      if (!modelId) {
+                                        Swal.showValidationMessage('Không tìm thấy ID của model');
+                                        return false;
+                                      }
+
+                                      return updateBatteryModel(modelId, payload)
+                                        .then(() => {
+                                          loadBatteries();
+                                          return true;
+                                        })
+                                        .catch(error => {
+                                          console.error('Failed to update battery model:', error);
+                                          const errorMsg = error?.response?.data?.message || error?.message || 'Có lỗi xảy ra';
+                                          Swal.showValidationMessage(errorMsg);
+                                          return false;
+                                        });
+                                    }
+                                  }).then(result => {
+                                    if (result.isConfirmed) {
+                                      Swal.fire('Thành công!', 'Model đã được cập nhật', 'success');
+                                    }
+                                  });
+                                }}
+                                className="text-blue-600 hover:text-blue-800 font-medium"
+                              >
+                                Sửa
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -6,7 +6,7 @@ export async function listVehicles() {
 }
 
 export async function registerVehicle(payload) {
-  const res = await API.post('/api/vehicle', payload);
+  const res = await API.post('/api/vehicle/register', payload);
   return res?.data?.data;
 }
 

@@ -5,10 +5,10 @@ const Vehicle = () => {
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [form, setForm] = useState({ vin: '', make: '', model: '', licensePlate: '', batteryType: '', batteryCapacity: '' });
+  const [form, setForm] = useState({ vin: '', make: '', model: '', year: '', licensePlate: '', batteryType: '', batteryCapacity: '' });
   const [saving, setSaving] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState(null);
-  const [editForm, setEditForm] = useState({ make: '', model: '', licensePlate: '', batteryType: '', batteryCapacity: '' });
+  const [editForm, setEditForm] = useState({ make: '', model: '', year: '', licensePlate: '', batteryType: '', batteryCapacity: '' });
 
   const load = async () => {
     try {
@@ -38,6 +38,7 @@ const Vehicle = () => {
         vin: form.vin.trim(),
         make: form.make.trim(),
         model: form.model.trim(),
+        year: Number(form.year),
         licensePlate: form.licensePlate.trim(),
         batteryType: form.batteryType.trim(),
         batteryCapacity: Number(form.batteryCapacity),
@@ -66,6 +67,7 @@ const Vehicle = () => {
     setEditForm({
       make: vehicle.make || '',
       model: vehicle.model || '',
+      year: String(vehicle.year ?? ''),
       licensePlate: vehicle.licensePlate || '',
       batteryType: vehicle.batteryType || '',
       batteryCapacity: vehicle.batteryCapacity || '',
@@ -81,16 +83,31 @@ const Vehicle = () => {
     e.preventDefault();
     try {
       setSaving(true);
+      // basic validations
+      const y = Number(editForm.year);
+      const now = new Date().getFullYear();
+      if (!Number.isInteger(y) || y < 1980 || y > now + 1) {
+        setError('Năm không hợp lệ (1980 - ' + (now + 1) + ')');
+        setSaving(false);
+        return;
+      }
+      const capacity = Number(editForm.batteryCapacity);
+      if (!Number.isFinite(capacity) || capacity <= 0) {
+        setError('Dung lượng pin phải là số dương');
+        setSaving(false);
+        return;
+      }
       const payload = {
         make: editForm.make.trim(),
         model: editForm.model.trim(),
+        year: y,
         licensePlate: editForm.licensePlate.trim(),
         batteryType: editForm.batteryType.trim(),
-        batteryCapacity: Number(editForm.batteryCapacity),
+        batteryCapacity: capacity,
       };
       await updateVehicle(editingVehicle.id, payload);
       setEditingVehicle(null);
-      setEditForm({ make: '', model: '', licensePlate: '', batteryType: '', batteryCapacity: '' });
+      setEditForm({ make: '', model: '', year: '', licensePlate: '', batteryType: '', batteryCapacity: '' });
       await load();
     } catch (e) {
       setError(e?.message || 'Không thể cập nhật phương tiện');
@@ -118,6 +135,7 @@ const Vehicle = () => {
                   <th className="p-2">VIN</th>
                   <th className="p-2">Hãng</th>
                   <th className="p-2">Mẫu</th>
+                  <th className="p-2">Năm</th>
                   <th className="p-2">Biển số</th>
                   <th className="p-2">Loại pin</th>
                   <th className="p-2">Dung lượng (kWh)</th>
@@ -131,10 +149,11 @@ const Vehicle = () => {
                     <td className="p-2">{v.vin}</td>
                     <td className="p-2">{v.make}</td>
                     <td className="p-2">{v.model}</td>
+                    <td className="p-2">{v.year}</td>
                     <td className="p-2">{v.licensePlate}</td>
                     <td className="p-2">{v.batteryType}</td>
                     <td className="p-2">{v.batteryCapacity}</td>
-                    <td className="p-2">{v.isActive ? 'Hoạt động' : 'Ngưng'}</td>
+                    <td className="p-2">{v.isActive ? 'Ngưng' : 'Hoạt động'}</td>
                     <td className="p-2">
                       <div className="flex gap-2">
                         <button onClick={() => handleEdit(v)} className="px-2 py-1 text-sm rounded bg-blue-50 text-blue-600 hover:bg-blue-100">Sửa</button>
@@ -158,6 +177,7 @@ const Vehicle = () => {
           <form onSubmit={handleUpdate} className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <input name="make" value={editForm.make} onChange={handleEditChange} placeholder="Hãng" className="border rounded px-3 py-2" required />
             <input name="model" value={editForm.model} onChange={handleEditChange} placeholder="Mẫu" className="border rounded px-3 py-2" required />
+            <input name="year" value={editForm.year} onChange={handleEditChange} placeholder="Năm" type="number" className="border rounded px-3 py-2" required />
             <input name="licensePlate" value={editForm.licensePlate} onChange={handleEditChange} placeholder="Biển số" className="border rounded px-3 py-2" required />
             <input name="batteryType" value={editForm.batteryType} onChange={handleEditChange} placeholder="Loại pin" className="border rounded px-3 py-2" required />
             <input name="batteryCapacity" value={editForm.batteryCapacity} onChange={handleEditChange} placeholder="Dung lượng (kWh)" type="number" step="0.1" className="border rounded px-3 py-2" required />
@@ -178,6 +198,7 @@ const Vehicle = () => {
             <input name="vin" value={form.vin} onChange={handleChange} placeholder="VIN" className="border rounded px-3 py-2" required />
             <input name="make" value={form.make} onChange={handleChange} placeholder="Hãng" className="border rounded px-3 py-2" required />
             <input name="model" value={form.model} onChange={handleChange} placeholder="Mẫu" className="border rounded px-3 py-2" required />
+            <input name="year" value={form.year} onChange={handleChange} placeholder="Năm" type="number" className="border rounded px-3 py-2" required />
             <input name="licensePlate" value={form.licensePlate} onChange={handleChange} placeholder="Biển số" className="border rounded px-3 py-2" required />
             <input name="batteryType" value={form.batteryType} onChange={handleChange} placeholder="Loại pin" className="border rounded px-3 py-2" required />
             <input name="batteryCapacity" value={form.batteryCapacity} onChange={handleChange} placeholder="Dung lượng (kWh)" type="number" step="0.1" className="border rounded px-3 py-2" required />

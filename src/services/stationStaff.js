@@ -1,33 +1,12 @@
 import API from './auth';
 
-// Helper function to get user details
-async function enrichStaffWithUserDetails(staffList) {
-  const enrichedStaff = await Promise.all(
-    staffList.map(async (staff) => {
-      try {
-        // Get user details using staffId
-        const userRes = await API.get(`/api/users/${staff.staffId}`);
-        const userData = userRes?.data?.data;
-        
-        return {
-          ...staff,
-          firstName: userData?.firstName || '',
-          lastName: userData?.lastName || '',
-          email: userData?.email || ''
-        };
-      } catch (error) {
-        console.error('Error fetching user details:', error);
-        return staff;
-      }
-    })
-  );
-  return enrichedStaff;
-}
-
+/**
+ * Get all staff members
+ * BE already returns full staff info (firstName, lastName, email, etc.)
+ */
 export async function getAllStaff() {
   const res = await API.get('/api/station-staff/all');
-  const staffList = res?.data?.data ?? [];
-  return enrichStaffWithUserDetails(staffList);
+  return res?.data?.data ?? [];
 }
 
 export async function getStationStaff(stationId) {

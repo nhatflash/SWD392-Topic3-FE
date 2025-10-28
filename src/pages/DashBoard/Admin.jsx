@@ -14,7 +14,9 @@ import API, { logout as apiLogout, clearTokens } from '../../services/auth';
 import { getUsers, getUsersByRole } from '../../services/admin';
 import { resolveAssetUrl } from '../../services/user';
 import { getAllStations, createStation, updateStation, changeStationStatus } from '../../services/station';
-import { getAllBatteries, getAllBatteryModels, defineBatteryModel, updateBatteryModel, getMonitoringStats } from '../../services/battery';
+import { getAllBatteries, getAllBatteryModels, defineBatteryModel, updateBatteryModel, getMonitoringStats, getBatteryStateById } from '../../services/battery';
+import BatteryDetailModal from '../../components/BatteryDetailModal';
+import { recordSoHDataPoint } from '../../services/sohTracking';
 
 const Admin = () => {
   const STORAGE_KEY = 'adminActiveView';
@@ -30,6 +32,7 @@ const Admin = () => {
   const [batteries, setBatteries] = useState([]);
   const [batteryModels, setBatteryModels] = useState([]);
   const [batteryTab, setBatteryTab] = useState('batteries'); // 'batteries' | 'models' | 'stats'
+  const [selectedBatteryState, setSelectedBatteryState] = useState(null); // for detail modal
   const [monitoringStats, setMonitoringStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState('');
@@ -127,6 +130,109 @@ const Admin = () => {
     } finally {
       setStatsLoading(false);
     }
+  };
+
+  // Open battery detail modal with realtime state
+  const handleOpenBatteryDetail = async (battery) => {
+    try {
+      const state = await getBatteryStateById(battery.batteryId || battery.id);
+      if (state?.stateOfHealth != null) {
+        try { recordSoHDataPoint(state.batteryId, state.stateOfHealth, state.status); } catch {}
+      }
+      setSelectedBatteryState(state);
+    } catch (e) {
+      console.error('Failed to load battery realtime state:', e);
+      Swal.fire('Lỗi', 'Không thể tải trạng thái realtime của pin', 'error');
+    }
+  };
+
+  // Show static battery info (like Staff > Pin trong trạm detail)
+  const handleViewBatteryInfo = (battery) => {
+    Swal.fire({
+      title: 'Chi tiết pin',
+      width: '700px',
+      html: `
+        <div class="space-y-4 text-left">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Số serial</label>
+              <p class="text-gray-900 font-mono">${battery.serialNumber}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Loại pin</label>
+              <p class="text-gray-900">${battery.type}</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
+              <p class="text-gray-900">
+                <span class="px-2 py-1 text-xs font-semibold rounded-full ${
+                  battery.status === 'FULL' ? 'bg-green-100 text-green-800' :
+                  battery.status === 'IN_USE' ? 'bg-blue-100 text-blue-800' :
+                  battery.status === 'CHARGING' ? 'bg-yellow-100 text-yellow-800' :
+                  battery.status === 'MAINTENANCE' ? 'bg-orange-100 text-orange-800' :
+                  battery.status === 'FAULTY' ? 'bg-red-100 text-red-800' :
+                  'bg-gray-100 text-gray-800'
+                }">${battery.status}</span>
+              </p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Trạm hiện tại</label>
+              <p class="text-gray-900">${battery.currentStationName || 'N/A'}</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Dung lượng</label>
+              <p class="text-gray-900 font-semibold">${battery.capacityKwh} kWh</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Mức sạc hiện tại</label>
+              <p class="text-gray-900 font-semibold">${battery.currentChargePercentage || 0}%</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Chu kỳ sạc</label>
+              <p class="text-gray-900">${battery.totalChargeCycles || 0}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Lượt đổi</label>
+              <p class="text-gray-900">${battery.totalSwapCount || 0}</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Ngày sản xuất</label>
+              <p class="text-gray-900">${battery.manufactureDate || 'N/A'}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Hết bảo hành</label>
+              <p class="text-gray-900">${battery.warrantyExpiryDate || 'N/A'}</p>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Giá thuê</label>
+            <p class="font-semibold text-green-600">${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(battery.rentalPrice || 0)}</p>
+          </div>
+
+          ${battery.notes ? `
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
+              <p class="text-gray-900 text-sm italic">${battery.notes}</p>
+            </div>
+          ` : ''}
+        </div>
+      `,
+      confirmButtonText: 'Đóng',
+      confirmButtonColor: '#0028b8'
+    });
   };
 
   // Load initial data
@@ -1050,6 +1156,7 @@ const Admin = () => {
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dung lượng</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mức sạc</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Giá thuê</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -1074,6 +1181,22 @@ const Admin = () => {
                             <td className="px-4 py-3 whitespace-nowrap text-sm">{battery.currentChargePercentage || 0}%</td>
                             <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-green-600">
                               {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(battery.rentalPrice || 0)}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleOpenBatteryDetail(battery)}
+                                  className="px-3 py-1.5 bg-[#0028b8] text-white rounded hover:bg-[#001a8b] transition-colors"
+                                >
+                                  Giám sát Pin
+                                </button>
+                                <button
+                                  onClick={() => handleViewBatteryInfo(battery)}
+                                  className="px-3 py-1.5 bg-[#0028b8] text-white rounded hover:bg-[#001a8b] transition-colors"
+                                >
+                                  Xem chi tiết
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -1422,6 +1545,16 @@ const Admin = () => {
               </div>
             )}
           </div>
+        )}
+
+        {/* Battery Detail Modal (Admin) */}
+        {selectedBatteryState && (
+          <BatteryDetailModal
+            batteryState={selectedBatteryState}
+            stationId={selectedBatteryState?.currentStationId}
+            enableRealtime={true}
+            onClose={() => setSelectedBatteryState(null)}
+          />
         )}
       </main>
     </div>

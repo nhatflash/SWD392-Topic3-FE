@@ -71,6 +71,22 @@ export async function getVehicleById(vehicleId) {
   return vehicles.find(v => v.vehicleId === vehicleId || v.id === vehicleId) || null;
 }
 
+/**
+ * Get vehicles for a specific driver (STAFF access)
+ * Role: STAFF, ADMIN
+ * @param {string} driverId - UUID of the driver (userId)
+ * @returns {Promise<Array>} Array of VehicleResponse
+ */
+export async function getVehiclesByDriverId(driverId) {
+  try {
+    const res = await API.get(`/api/vehicle/all/${driverId}`);
+    return res?.data?.data ?? [];
+  } catch (error) {
+    console.error('Failed to get driver vehicles:', error);
+    return [];
+  }
+}
+
 
 
 

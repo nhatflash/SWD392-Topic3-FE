@@ -37,14 +37,13 @@ export async function getAllUnconfirmedSwaps() {
 
 /**
  * Confirm a scheduled swap and assign batteries
- * Role: STAFF
- * @param {object} payload - ConfirmScheduledSwapRequest
- * @param {string} payload.transactionId - UUID of the swap transaction
- * @param {Array<string>} payload.batteryIds - Array of battery UUIDs to assign
+ * Role: STAFF  
+ * @param {string} transactionId - UUID of the swap transaction
+ * @param {Array<string>} batteryIds - Array of battery UUIDs to assign
  * @returns {Promise<Object>} SwapTransactionResponse
  */
-export async function confirmScheduledSwap(payload) {
-  const res = await API.post('/api/swap/scheduled/confirm', payload);
+export async function confirmScheduledSwap(transactionId, batteryIds) {
+  const res = await API.post(`/api/swap/scheduled/${transactionId}/confirm`, { batteryIds });
   return res?.data?.data;
 }
 

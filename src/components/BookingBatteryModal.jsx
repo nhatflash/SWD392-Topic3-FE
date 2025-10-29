@@ -192,25 +192,15 @@ const BookingBatteryModal = ({ open, onClose, onBooked }) => {
             </div>
 
             {vehicles.length > 0 && (
-              <>
-                <div className="mb-2 font-semibold">Chọn hình thức:</div>
-                <div className="flex gap-4 mb-4">
-                  <button 
-                    className="px-5 py-2 rounded-lg bg-[#0028b8] text-white font-medium hover:bg-[#335cff] transition-colors disabled:opacity-50" 
-                    onClick={() => setStep(4)}
-                    disabled={!selectedVehicle}
-                  >
-                    Đặt lịch
-                  </button>
-                  <button 
-                    className="px-5 py-2 rounded-lg bg-gray-200 font-medium hover:bg-gray-300 transition-colors disabled:opacity-50" 
-                    onClick={() => setStep(5)}
-                    disabled={!selectedVehicle}
-                  >
-                    Tới trực tiếp
-                  </button>
-                </div>
-              </>
+              <div className="mt-6 flex justify-end gap-3">
+                <button 
+                  className="px-5 py-2 rounded-lg bg-[#0028b8] text-white font-medium hover:bg-[#335cff] transition-colors disabled:opacity-50" 
+                  onClick={() => setStep(4)}
+                  disabled={!selectedVehicle}
+                >
+                  Đặt lịch
+                </button>
+              </div>
             )}
 
             <div className="mt-6 flex justify-between gap-3">
@@ -221,17 +211,6 @@ const BookingBatteryModal = ({ open, onClose, onBooked }) => {
         {/* Step 4: Đặt lịch */}
         {!loading && step === 4 && (
           <BookingScheduleStep
-            station={selectedStation}
-            model={selectedModel}
-            vehicle={selectedVehicle}
-            onBack={() => setStep(3)}
-            onBooked={onBooked}
-            onClose={onClose}
-          />
-        )}
-        {/* Step 5: Tới trực tiếp */}
-        {!loading && step === 5 && (
-          <WalkInStep
             station={selectedStation}
             model={selectedModel}
             vehicle={selectedVehicle}
@@ -306,117 +285,6 @@ const BookingScheduleStep = ({ station, model, vehicle, onBack, onBooked, onClos
         <button onClick={onBack} className="px-5 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 transition-colors font-medium" disabled={loading}>Quay lại</button>
         <button className="px-5 py-2 rounded-lg bg-[#0028b8] text-white font-medium hover:bg-[#335cff] transition-colors" onClick={handleBook} disabled={loading}>
           {loading ? 'Đang đặt lịch...' : 'Đặt lịch'}
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// Step 5: Tới trực tiếp (tạo scheduled swap với thời gian hiện tại)
-const WalkInStep = ({ station, model, vehicle, onBack, onBooked, onClose }) => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleWalkIn = async () => {
-    if (!vehicle) {
-      setError('Vui lòng chọn xe');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
-    try {
-      // Tạo scheduled swap với thời gian hiện tại (trong vòng 5 phút tới)
-      const now = new Date();
-      now.setMinutes(now.getMinutes() + 5); // Thêm 5 phút để driver kịp tới
-      
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      const seconds = String(now.getSeconds()).padStart(2, '0');
-      
-      const scheduledTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-      const stationId = station.stationId || station.id;
-      const vehicleId = vehicle.vehicleId || vehicle.id;
-
-      const payload = {
-        vehicleId,
-        stationId,
-        scheduledTime,
-        notes: `Walk-in - Tới trực tiếp trạm để đổi pin model ${model.type}`
-      };
-
-      await createScheduledSwap(payload);
-      
-      setLoading(false);
-      Swal.fire({
-        icon: 'success',
-        title: 'Thành công!',
-        html: `
-          <p>Bạn đã đăng ký tới trực tiếp trạm <b>${station.name}</b></p>
-          <p class="text-sm text-gray-600 mt-2">Vui lòng tới trạm trong vòng 15 phút và thông báo cho nhân viên.</p>
-          <p class="text-sm text-gray-600">Nhân viên sẽ kiểm tra và xác nhận pin cho bạn.</p>
-        `,
-        confirmButtonText: 'Đồng ý'
-      });
-      onBooked();
-      onClose();
-    } catch (err) {
-      setLoading(false);
-      const errorMsg = err?.response?.data?.message || err?.message || 'Đăng ký thất bại';
-      setError(errorMsg);
-      
-      // Check nếu lỗi do không có pin
-      if (errorMsg.includes('pin') || errorMsg.includes('battery') || errorMsg.includes('available')) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Trạm không còn pin!',
-          text: `Trạm ${station.name} hiện không có pin model ${model.type} sẵn sàng. Vui lòng chọn trạm khác hoặc đặt lịch trước.`,
-          confirmButtonText: 'Đồng ý'
-        });
-      } else {
-        Swal.fire('Lỗi', errorMsg, 'error');
-      }
-    }
-  };
-
-  return (
-    <div>
-      <div className="mb-3 font-semibold text-center">Xác nhận tới trực tiếp trạm</div>
-      <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-        <div className="text-sm mb-2"><span className="font-semibold">Trạm:</span> <span className="text-blue-700">{station?.name}</span></div>
-        <div className="text-sm mb-2"><span className="font-semibold">Địa chỉ:</span> {station?.address}</div>
-        <div className="text-sm mb-2"><span className="font-semibold">Model pin:</span> <span className="text-blue-700">{model?.type}</span></div>
-        <div className="text-sm"><span className="font-semibold">Xe:</span> {vehicle?.make} {vehicle?.model} ({vehicle?.licensePlate})</div>
-      </div>
-      <div className="mb-4 text-gray-700 text-sm">
-        <div className="flex items-start gap-2 mb-2">
-          <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-          </svg>
-          <span>Vui lòng tới trạm trong vòng <b>15 phút</b> và thông báo cho nhân viên</span>
-        </div>
-        <div className="flex items-start gap-2">
-          <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-          </svg>
-          <span>Nhân viên sẽ kiểm tra pin sẵn sàng và hỗ trợ đổi/thuê pin cho bạn</span>
-        </div>
-      </div>
-      {error && <div className="text-red-600 mb-3 text-center text-sm">{error}</div>}
-      <div className="mt-6 flex justify-between gap-3">
-        <button onClick={onBack} className="px-5 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 transition-colors font-medium" disabled={loading}>
-          Quay lại
-        </button>
-        <button 
-          className="px-5 py-2 rounded-lg bg-[#00b894] text-white font-medium hover:bg-[#00a07a] transition-colors" 
-          onClick={handleWalkIn} 
-          disabled={loading}
-        >
-          {loading ? 'Đang xử lý...' : 'Xác nhận tới trạm'}
         </button>
       </div>
     </div>

@@ -13,6 +13,7 @@ import StaffManagement from './pages/DashBoard/Staff/StaffManagement';
 import StaffManagementForStaff from './pages/Staff/StaffManagement/StaffManagement';
 import BatteryManagement from './pages/Staff/BatteryManagement/BatteryManagement';
 import BatteryMonitoring from './pages/Staff/BatteryMonitoring/BatteryMonitoring';
+import TransactionManagement from './pages/Staff/TransactionManagement/TransactionManagement';
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
         <Route path="/staff/dashboard" element={<StaffDashboard />} />
         <Route path="/staff/batteries" element={<BatteryManagement />} />
         <Route path="/staff/battery-monitoring" element={<BatteryMonitoring />} />
+        <Route path="/staff/transactions" element={<TransactionManagement />} />
         <Route path="/stations" element={<Stations />} />
         <Route path="/stations/:id" element={<PublicStationDetail />} />
         <Route path="/dashboard/admin/station/:id" element={<StationDetail />} />

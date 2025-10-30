@@ -5,7 +5,6 @@ import API from './auth';
  * Returns null to prevent API errors
  */
 export async function getMyStaffInfo() {
-  console.warn('getMyStaffInfo is deprecated - endpoint /api/station-staff/me does not exist on backend');
   return null;
 }
 

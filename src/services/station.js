@@ -30,10 +30,8 @@ export async function updateStation(id, data) {
     console.error('Station ID is missing');
     throw new Error('Station ID is required');
   }
-  console.log('Updating station with ID:', id, 'Data:', data);
   try {
     const res = await API.put(`/api/station/${id}/update`, data);
-    console.log('Update response:', res?.data);
     return res?.data?.data;
   } catch (error) {
     console.error('Error updating station:', error.response || error);
@@ -42,7 +40,6 @@ export async function updateStation(id, data) {
 }
 
 export async function changeStationStatus(id, newStatus) {
-  console.log('Changing station status:', id, newStatus);
   if (!id) {
     throw new Error('Station ID is required');
   }

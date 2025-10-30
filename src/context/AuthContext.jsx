@@ -159,15 +159,7 @@ export const AuthProvider = ({ children }) => {
       // BE access token = 15 min, refresh at ~13 min to avoid disruption
       if (shouldRefreshToken(currentToken) && currentRefreshToken) {
         try {
-          console.log('🔄 [Token Refresh] Token will expire soon, refreshing...');
-          console.log('   ├─ Refresh Token: Keep existing (no change)');
-          console.log('   └─ Access Token: Requesting new token from BE...');
-          
           await refreshTokenAPI(currentRefreshToken);
-          
-          console.log('✅ [Token Refresh] SUCCESS!');
-          console.log('   ├─ Refresh Token: ✓ Kept existing');
-          console.log('   └─ Access Token: ✓ Updated to new token');
         } catch (e) {
           console.error('❌ [Token Refresh] FAILED, logging out:', e?.message);
           clearTokens();

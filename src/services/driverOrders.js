@@ -28,8 +28,6 @@ export async function getOrderHistory(status) {
  */
 export async function getAllOrders() {
   try {
-    console.log('🔍 [Driver Orders] Fetching all orders...');
-    
     // Fetch orders by different statuses
     const [scheduled, confirmed, inProgress, completed, canceled] = await Promise.allSettled([
       getOrderHistory('SCHEDULED'),
@@ -47,7 +45,6 @@ export async function getAllOrders() {
       }
     });
 
-    console.log(`✅ [Driver Orders] Loaded ${allOrders.length} orders`);
     return allOrders.sort((a, b) => new Date(b.scheduledTime || b.arrivalTime) - new Date(a.scheduledTime || a.arrivalTime));
   } catch (error) {
     console.error('❌ [Driver Orders] Failed to get all orders:', error);
@@ -64,8 +61,6 @@ export async function getAllOrders() {
  */
 export async function createPayment(transactionId, paymentMethod, returnUrl = window.location.origin + '/driver/orders') {
   try {
-    console.log(`💳 [Driver Payment] Creating ${paymentMethod} payment for order ${transactionId}`);
-    
     const payload = {
       transactionId,
       paymentMethod,
@@ -75,7 +70,6 @@ export async function createPayment(transactionId, paymentMethod, returnUrl = wi
     const res = await API.post('/api/payment/create', payload);
     const data = res?.data?.data;
     
-    console.log('✅ [Driver Payment] Payment created successfully');
     return data;
   } catch (error) {
     console.error('❌ [Driver Payment] Failed to create payment:', error?.response?.data || error);

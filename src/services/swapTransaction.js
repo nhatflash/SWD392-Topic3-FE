@@ -32,7 +32,13 @@ export async function createScheduledSwap(payload) {
 export async function getAllUnconfirmedSwaps() {
   const res = await API.get('/api/swap/scheduled/all');
   const data = res?.data?.data;
-  return Array.isArray(data) ? data : [];
+  console.log('🔍 getAllUnconfirmedSwaps API response:', data);
+  
+  // Make sure we return array and filter only SCHEDULED status on frontend as fallback
+  const swaps = Array.isArray(data) ? data : [];
+  console.log('📊 Raw swaps from API:', swaps.length, '| Statuses:', swaps.map(s => s.status));
+  
+  return swaps;
 }
 
 /**

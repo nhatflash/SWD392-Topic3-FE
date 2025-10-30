@@ -18,7 +18,13 @@ const TransactionManagement = () => {
     try {
       setLoading(true);
       const swaps = await getAllUnconfirmedSwaps();
-      setUnconfirmedCount(swaps.length);
+      
+      // Filter only unconfirmed swaps (same logic as SwapConfirmationTab)
+      const unconfirmedSwaps = swaps.filter(swap => 
+        swap.status === 'SCHEDULED' || swap.status === 'PENDING'
+      );
+      
+      setUnconfirmedCount(unconfirmedSwaps.length);
     } catch (e) {
       console.error('Failed to load unconfirmed swaps:', e);
     } finally {

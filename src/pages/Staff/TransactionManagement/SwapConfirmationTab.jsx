@@ -25,10 +25,24 @@ const SwapConfirmationTab = ({ onUpdate }) => {
       ]);
       
       console.log('Raw swap data from BE:', swapsData[0]); // Debug: check what BE returns
+      console.log('All swaps statuses:', swapsData.map(swap => ({
+        id: swap.transactionId || swap.id,
+        code: swap.code,
+        status: swap.status
+      })));
+      
+      // Filter only unconfirmed swaps (SCHEDULED status)
+      const unconfirmedSwaps = swapsData.filter(swap => {
+        const isUnconfirmed = swap.status === 'SCHEDULED' || swap.status === 'PENDING';
+        console.log(`Swap ${swap.code || swap.transactionId?.slice(0, 8)}: status=${swap.status}, isUnconfirmed=${isUnconfirmed}`);
+        return isUnconfirmed;
+      });
+      
+      console.log('Filtered unconfirmed swaps:', unconfirmedSwaps.length, 'out of', swapsData.length);
       
       // Enrich swaps with driver info and fetch vehicle/station
       const enrichedSwaps = await Promise.all(
-        swapsData.map(async (swap) => {
+        unconfirmedSwaps.map(async (swap) => {
           try {
             // Check if BE already returned embedded data
             const hasVehicleData = swap.vehicle || swap.vehicleResponse || swap.vehicleInfo;
@@ -94,12 +108,21 @@ const SwapConfirmationTab = ({ onUpdate }) => {
   };
 
   const handleToggleBattery = (batteryId) => {
+    // Check if battery is already assigned - if so, don't allow selection
+    if (isBatteryAssigned(batteryId)) {
+      setError('Pin này đã được gán cho giao dịch khác');
+      return;
+    }
+    
     setSelectedBatteries(prev => {
       if (prev.includes(batteryId)) {
         return prev.filter(id => id !== batteryId);
       }
       return [...prev, batteryId];
     });
+    
+    // Clear error when successfully selecting
+    setError('');
   };
 
   const handleConfirm = async () => {
@@ -116,6 +139,11 @@ const SwapConfirmationTab = ({ onUpdate }) => {
       setSelectedSwap(null);
       setSelectedBatteries([]);
       await loadData();
+      
+      // Also update parent component count
+      if (onUpdate) {
+        onUpdate();
+      }
     } catch (e) {
       const errorMessage = e?.response?.data?.message || e?.message || 'Không thể duyệt đơn';
       setError('Lỗi: ' + errorMessage);
@@ -135,6 +163,24 @@ const SwapConfirmationTab = ({ onUpdate }) => {
       b.status === 'FULL' && // Changed from AVAILABLE to FULL (ready to use)
       (!vehicleBatteryType || b.type === vehicleBatteryType) // b.type instead of b.batteryType
     );
+  };
+
+  // Check if battery is already assigned to other confirmed swaps
+  const isBatteryAssigned = (batteryId) => {
+    // Check if battery is already selected for other confirmed swaps
+    const assignedInOtherSwaps = swaps.some(otherSwap => {
+      // Skip current selected swap
+      if (otherSwap.transactionId === selectedSwap?.transactionId) return false;
+      
+      // Check if this swap is confirmed and has this battery assigned
+      return otherSwap.status === 'CONFIRMED' && 
+             otherSwap.batteryTransactions?.some(bt => 
+               bt.newBattery?.batteryId === batteryId || 
+               bt.newBattery?.id === batteryId
+             );
+    });
+    
+    return assignedInOtherSwaps;
   };
 
   if (loading && !swaps.length) {
@@ -231,31 +277,51 @@ const SwapConfirmationTab = ({ onUpdate }) => {
                 </div>
 
                 <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
-                  {getAvailableBatteriesForSwap(selectedSwap).map(battery => (
-                    <div
-                      key={battery.batteryId || battery.id}
-                      onClick={() => handleToggleBattery(battery.batteryId || battery.id)}
-                      className={`
-                        p-3 border-2 rounded-lg cursor-pointer transition-all
-                        ${selectedBatteries.includes(battery.batteryId || battery.id)
-                          ? 'border-green-500 bg-green-50'
-                          : 'border-gray-200 hover:border-gray-300 bg-white'
-                        }
-                      `}
-                    >
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <p className="font-medium text-gray-900">{battery.model}</p>
-                          <p className="text-sm text-gray-600">SN: {battery.serialNumber}</p>
+                  {getAvailableBatteriesForSwap(selectedSwap).map(battery => {
+                    const batteryId = battery.batteryId || battery.id;
+                    const isAssigned = isBatteryAssigned(batteryId);
+                    const isSelected = selectedBatteries.includes(batteryId);
+                    
+                    return (
+                      <div
+                        key={batteryId}
+                        onClick={() => !isAssigned && handleToggleBattery(batteryId)}
+                        className={`
+                          p-3 border-2 rounded-lg transition-all
+                          ${isAssigned 
+                            ? 'border-gray-300 bg-gray-100 cursor-not-allowed opacity-60' 
+                            : isSelected
+                              ? 'border-green-500 bg-green-50 cursor-pointer'
+                              : 'border-gray-200 hover:border-gray-300 bg-white cursor-pointer'
+                          }
+                        `}
+                      >
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <p className={`font-medium ${isAssigned ? 'text-gray-500' : 'text-gray-900'}`}>
+                              {battery.model}
+                            </p>
+                            <p className={`text-sm ${isAssigned ? 'text-gray-400' : 'text-gray-600'}`}>
+                              SN: {battery.serialNumber}
+                              {isAssigned && <span className="ml-2 text-red-500 font-medium">(Đã gán)</span>}
+                            </p>
+                          </div>
+                          
+                          {isSelected && !isAssigned && (
+                            <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                          
+                          {isAssigned && (
+                            <svg className="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clipRule="evenodd" />
+                            </svg>
+                          )}
                         </div>
-                        {selectedBatteries.includes(battery.batteryId || battery.id) && (
-                          <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   
                   {getAvailableBatteriesForSwap(selectedSwap).length === 0 && (
                     <div className="text-center py-8 text-gray-500">

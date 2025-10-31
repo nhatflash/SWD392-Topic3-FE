@@ -5,6 +5,7 @@ const PaymentModal = ({ order, onClose, onSuccess }) => {
   const [selectedMethod, setSelectedMethod] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const paymentMethods = [
     {
@@ -60,8 +61,7 @@ const PaymentModal = ({ order, onClose, onSuccess }) => {
       } else if (selectedMethod === 'CASH') {
         // Cash payment returns payment ID
         console.log('✅ Cash payment processed:', paymentUrl);
-        alert('Thanh toán bằng tiền mặt đã được ghi nhận. Vui lòng thanh toán tại trạm khi đến đổi pin.');
-        onSuccess();
+        setShowSuccessModal(true);
       }
     } catch (e) {
       console.error('❌ Payment error:', e);
@@ -70,6 +70,11 @@ const PaymentModal = ({ order, onClose, onSuccess }) => {
       setLoading(false);
     }
     // Note: Don't set loading to false for VNPAY as we're redirecting
+  };
+
+  const handleCloseSuccess = () => {
+    setShowSuccessModal(false);
+    onSuccess();
   };
 
   const formatPrice = (price) => {
@@ -81,8 +86,51 @@ const PaymentModal = ({ order, onClose, onSuccess }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-white bg-opacity-95 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-200">
+    <>
+      {/* Success Modal - Outside main modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-gray-100/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-lg shadow-2xl max-w-md w-full p-8 text-center animate-[fadeIn_0.3s_ease-in-out]">
+            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-3">Xác nhận thành công!</h3>
+            <p className="text-gray-600 mb-6">
+              Thanh toán bằng tiền mặt đã được ghi nhận. 
+              <br />
+              <strong>Vui lòng thanh toán tại trạm khi đến đổi pin.</strong>
+            </p>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-2 text-sm text-blue-800">
+                <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="text-left">
+                  <p className="font-medium mb-1">Lưu ý:</p>
+                  <ul className="space-y-1 text-xs">
+                    <li>• Mang theo tiền mặt khi đến trạm</li>
+                    <li>• Nhớ mã đơn hàng: <strong>#{order.code}</strong></li>
+                    <li>• Thanh toán trước khi bắt đầu đổi pin</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={handleCloseSuccess}
+              className="w-full bg-[#0028b8] text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+            >
+              Đã hiểu
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Main Payment Modal */}
+      {!showSuccessModal && (
+        <div className="fixed inset-0 bg-white bg-opacity-95 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-200">
         {/* Header */}
         <div className="p-8 border-b border-gray-200">
           <div className="flex items-center justify-between">
@@ -213,7 +261,9 @@ const PaymentModal = ({ order, onClose, onSuccess }) => {
           </div>
         </div>
       </div>
-    </div>
+        </div>
+      )}
+    </>
   );
 };
 

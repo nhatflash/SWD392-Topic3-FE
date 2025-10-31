@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getAllUnconfirmedSwaps, confirmArrival, startSwapping, completeSwapping, getSwapStatusText } from '../../../services/swapTransaction';
+import { getPaymentStatus } from '../../../services/driverOrders';
 import { getVehiclesByDriverId } from '../../../services/vehicle';
 import { getStationById } from '../../../services/station';
 import { getUsers } from '../../../services/admin';
@@ -9,6 +10,7 @@ const SwapProcessingTab = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [processingId, setProcessingId] = useState(null);
+  const [paymentStatuses, setPaymentStatuses] = useState({}); // Track payment status for each transaction
 
   const loadSwaps = async () => {
     try {
@@ -63,6 +65,28 @@ const SwapProcessingTab = () => {
       );
       
       setSwaps(enriched);
+      
+      // Load payment status for each CONFIRMED transaction
+      const paymentStatusPromises = enriched
+        .filter(s => s.status === 'CONFIRMED')
+        .map(async (swap) => {
+          try {
+            const status = await getPaymentStatus(swap.transactionId);
+            return { transactionId: swap.transactionId, status };
+          } catch (e) {
+            console.warn(`Failed to get payment status for ${swap.transactionId}:`, e);
+            return { transactionId: swap.transactionId, status: null };
+          }
+        });
+      
+      const statuses = await Promise.all(paymentStatusPromises);
+      const statusMap = {};
+      statuses.forEach(({ transactionId, status }) => {
+        statusMap[transactionId] = status;
+        console.log(`💳 Payment status for ${transactionId.slice(0, 8)}:`, status);
+      });
+      setPaymentStatuses(statusMap);
+      
     } catch (e) {
       const errorMessage = e?.response?.data?.message || e?.message || 'Không thể tải dữ liệu';
       setError('Lỗi: ' + errorMessage);
@@ -84,7 +108,7 @@ const SwapProcessingTab = () => {
       setProcessingId(transactionId);
       setError('');
       await confirmArrival(transactionId);
-      await loadSwaps();
+      await loadSwaps(); // This will also reload payment statuses
     } catch (e) {
       const errorMessage = e?.response?.data?.message || e?.message || 'Không thể xác nhận đến trạm';
       setError('Lỗi: ' + errorMessage);
@@ -98,6 +122,21 @@ const SwapProcessingTab = () => {
     try {
       setProcessingId(transactionId);
       setError('');
+      
+      // Check payment status before allowing swap to start
+      const paymentStatus = paymentStatuses[transactionId];
+      
+      // Skip payment check if transaction has arrivalTime (means customer is at station)
+      // For cash payment, payment will be done at the station
+      const swap = swaps.find(s => s.transactionId === transactionId);
+      const hasArrived = swap?.arrivalTime;
+      
+      if (!hasArrived && (!paymentStatus || paymentStatus.status !== 'COMPLETED')) {
+        setError('❌ Không thể bắt đầu đổi pin: Đơn hàng chưa được thanh toán!');
+        setProcessingId(null);
+        return;
+      }
+      
       await startSwapping(transactionId);
       await loadSwaps();
     } catch (e) {
@@ -140,25 +179,63 @@ const SwapProcessingTab = () => {
   const getActionButtons = (swap) => {
     const id = swap.transactionId;
     const isProcessing = processingId === id;
+    const paymentStatus = paymentStatuses[id];
+    const isPaymentCompleted = paymentStatus?.status === 'COMPLETED';
+    const hasArrived = !!swap.arrivalTime; // Check if already confirmed arrival
+
+    // Debug log
+    console.log(`🔍 Transaction ${id.slice(0, 8)}:`, {
+      status: swap.status,
+      hasArrived,
+      paymentStatus,
+      isPaymentCompleted
+    });
 
     if (swap.status === 'CONFIRMED') {
-      // Can confirm arrival or start swapping
+      // Can confirm arrival or start swapping (only if paid)
+      // For cash payment: allow start swapping after arrival confirmation
+      const canStartSwapping = hasArrived || isPaymentCompleted;
+      
       return (
-        <div className="flex gap-2">
-          <button
-            onClick={() => handleConfirmArrival(id)}
-            disabled={isProcessing}
-            className="flex-1 px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
-          >
-            {isProcessing ? 'Đang xử lý...' : '✓ Xác nhận đến'}
-          </button>
-          <button
-            onClick={() => handleStartSwapping(id)}
-            disabled={isProcessing}
-            className="flex-1 px-3 py-2 bg-[#0028b8] text-white text-sm rounded-lg hover:bg-[#001a8b] disabled:opacity-50 transition-colors"
-          >
-            {isProcessing ? 'Đang xử lý...' : '▶ Bắt đầu đổi'}
-          </button>
+        <div className="space-y-2">
+          {/* Payment Status Indicator */}
+          {paymentStatus && (
+            <div className={`p-2 rounded-lg text-xs font-medium text-center ${
+              isPaymentCompleted 
+                ? 'bg-green-50 text-green-700 border border-green-200' 
+                : 'bg-yellow-50 text-yellow-700 border border-yellow-200'
+            }`}>
+              {isPaymentCompleted ? '✓ Đã thanh toán' : '⚠️ Chưa thanh toán'}
+            </div>
+          )}
+          
+          {/* Arrival confirmation info for cash payment */}
+          {!paymentStatus && hasArrived && (
+            <div className="p-2 rounded-lg text-xs font-medium text-center bg-blue-50 text-blue-700 border border-blue-200">
+              💵 Thanh toán tiền mặt tại trạm
+            </div>
+          )}
+          
+          <div className="flex gap-2">
+            {/* Only show "Xác nhận đến" if arrivalTime is not set */}
+            {!hasArrived && (
+              <button
+                onClick={() => handleConfirmArrival(id)}
+                disabled={isProcessing}
+                className="flex-1 px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+              >
+                {isProcessing ? 'Đang xử lý...' : '✓ Xác nhận đến'}
+              </button>
+            )}
+            <button
+              onClick={() => handleStartSwapping(id)}
+              disabled={isProcessing || !canStartSwapping}
+              title={!canStartSwapping ? 'Cần xác nhận đến hoặc thanh toán trước' : ''}
+              className={`${!hasArrived ? 'flex-1' : 'w-full'} px-3 py-2 bg-[#0028b8] text-white text-sm rounded-lg hover:bg-[#001a8b] disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
+            >
+              {isProcessing ? 'Đang xử lý...' : '▶ Bắt đầu đổi'}
+            </button>
+          </div>
         </div>
       );
     }

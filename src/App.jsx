@@ -15,6 +15,7 @@ import BatteryManagement from './pages/Staff/BatteryManagement/BatteryManagement
 import BatteryMonitoring from './pages/Staff/BatteryMonitoring/BatteryMonitoring';
 import TransactionManagement from './pages/Staff/TransactionManagement/TransactionManagement';
 import MyOrders from './pages/Driver/MyOrders/MyOrders';
+import PaymentReturn from './pages/Payment/PaymentReturn/PaymentReturn';
 
 function App() {
   return (
@@ -41,6 +42,10 @@ function App() {
 
         {/* Driver routes */}
         <Route path="/driver/orders" element={<MyOrders />} />
+        <Route path="/driver/my-orders" element={<MyOrders />} />
+
+        {/* Payment routes */}
+        <Route path="/payment/return" element={<PaymentReturn />} />
 
         {/* Fallback route */}
         <Route path="*" element={<HomePage />} />

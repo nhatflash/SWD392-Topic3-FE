@@ -6,6 +6,7 @@ import {
   canPayOrder 
 } from '../../../services/driverOrders';
 import PaymentModal from './components/PaymentModal';
+import FeedbackModal from './components/FeedbackModal';
 
 const MyOrders = () => {
   const [orders, setOrders] = useState([]);
@@ -14,6 +15,7 @@ const MyOrders = () => {
   const [error, setError] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   
   // Filters
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -63,6 +65,18 @@ const MyOrders = () => {
     setShowPaymentModal(false);
     setSelectedOrder(null);
     // Reload orders to update payment status
+    loadOrders();
+  };
+
+  const handleFeedback = (order) => {
+    setSelectedOrder(order);
+    setShowFeedbackModal(true);
+  };
+
+  const handleFeedbackSuccess = () => {
+    setShowFeedbackModal(false);
+    setSelectedOrder(null);
+    // Reload orders to update feedback
     loadOrders();
   };
 
@@ -253,6 +267,55 @@ const MyOrders = () => {
                       </div>
                     </div>
                   )}
+
+                  {/* Feedback Button - Only show for COMPLETED orders with swapEndTime and without feedback */}
+                  {order.status === 'COMPLETED' && order.swapEndTime && !order.driverRating && (
+                    <div className="pt-4 border-t border-gray-200">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-sm text-gray-600">Đơn hàng đã hoàn thành</p>
+                          <p className="text-xs text-blue-600">💬 Hãy chia sẻ trải nghiệm của bạn</p>
+                        </div>
+                        <button
+                          onClick={() => handleFeedback(order)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors"
+                        >
+                          ⭐ Đánh giá
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Show feedback if already rated */}
+                  {order.status === 'COMPLETED' && order.swapEndTime && order.driverRating && (
+                    <div className="pt-4 border-t border-gray-200 bg-blue-50 rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="text-yellow-400 text-xl">
+                          {'⭐'.repeat(order.driverRating)}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900 mb-1">Đánh giá của bạn</p>
+                          {order.driverFeedback && (
+                            <p className="text-sm text-gray-700 italic">"{order.driverFeedback}"</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Show message if COMPLETED but no swapEndTime yet */}
+                  {order.status === 'COMPLETED' && !order.swapEndTime && (
+                    <div className="pt-4 border-t border-gray-200 bg-yellow-50 rounded-lg p-4">
+                      <div className="flex items-start gap-2">
+                        <span className="text-yellow-600">⏳</span>
+                        <div className="flex-1">
+                          <p className="text-sm text-yellow-800">
+                            Giao dịch đang được xử lý. Bạn có thể đánh giá sau khi hoàn tất.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))
@@ -293,6 +356,15 @@ const MyOrders = () => {
           order={selectedOrder}
           onClose={() => setShowPaymentModal(false)}
           onSuccess={handlePaymentSuccess}
+        />
+      )}
+
+      {/* Feedback Modal */}
+      {showFeedbackModal && selectedOrder && (
+        <FeedbackModal
+          order={selectedOrder}
+          onClose={() => setShowFeedbackModal(false)}
+          onSuccess={handleFeedbackSuccess}
         />
       )}
     </div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { createPayment } from '../../../../services/driverOrders';
+import { processPayment } from '../../../../services/payment';
 
 const PaymentModal = ({ order, onClose, onSuccess }) => {
   const [selectedMethod, setSelectedMethod] = useState('');
@@ -33,28 +33,43 @@ const PaymentModal = ({ order, onClose, onSuccess }) => {
       setLoading(true);
       setError('');
 
-      const paymentData = await createPayment(
-        order.transactionId,
-        selectedMethod,
-        window.location.origin + '/driver/orders'
-      );
+      console.log('💳 Processing payment with method:', selectedMethod);
+      console.log('📋 Transaction ID:', order.transactionId);
 
-      if (selectedMethod === 'VNPAY' && paymentData?.paymentUrl) {
-        // Redirect to VnPay
-        console.log('🔗 Redirecting to VnPay:', paymentData.paymentUrl);
-        window.location.href = paymentData.paymentUrl;
+      // Call API: GET /api/payment/process?transactionId=xxx&method=VNPAY
+      // Response: { message, data: "vnpay_url_string", timestamp }
+      const paymentUrl = await processPayment({
+        transactionId: order.transactionId,
+        method: selectedMethod
+      });
+
+      if (selectedMethod === 'VNPAY') {
+        // paymentUrl is the VNPay URL string from response.data
+        if (paymentUrl && typeof paymentUrl === 'string') {
+          console.log('🔗 Redirecting to VNPay:', paymentUrl);
+          
+          // Save transaction info to sessionStorage for return page
+          sessionStorage.setItem('pendingPaymentTransaction', order.transactionId);
+          sessionStorage.setItem('pendingPaymentOrderCode', order.code);
+          
+          // Redirect to VNPay payment page
+          window.location.href = paymentUrl;
+        } else {
+          throw new Error('Không nhận được URL thanh toán từ VNPay');
+        }
       } else if (selectedMethod === 'CASH') {
-        // Cash payment confirmation
+        // Cash payment returns payment ID
+        console.log('✅ Cash payment processed:', paymentUrl);
         alert('Thanh toán bằng tiền mặt đã được ghi nhận. Vui lòng thanh toán tại trạm khi đến đổi pin.');
         onSuccess();
-      } else {
-        throw new Error('Phản hồi thanh toán không hợp lệ');
       }
     } catch (e) {
-      setError('Không thể tạo thanh toán: ' + (e?.response?.data?.message || e?.message));
-    } finally {
+      console.error('❌ Payment error:', e);
+      const errorMessage = e?.response?.data?.message || e?.message || 'Đã xảy ra lỗi';
+      setError('Không thể tạo thanh toán: ' + errorMessage);
       setLoading(false);
     }
+    // Note: Don't set loading to false for VNPAY as we're redirecting
   };
 
   const formatPrice = (price) => {

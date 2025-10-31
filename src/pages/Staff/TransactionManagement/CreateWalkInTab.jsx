@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createWalkInSwap } from '../../../services/swapTransaction';
-import { getAllBatteries } from '../../../services/battery';
+import { getAllBatteries, getBatteriesByStation } from '../../../services/battery';
 import { getUsers } from '../../../services/admin';
 import { getVehiclesByDriverId } from '../../../services/vehicle';
 
@@ -10,6 +10,7 @@ const CreateWalkInTab = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [stationId, setStationId] = useState(null);
 
   const [formData, setFormData] = useState({
     driverId: '',
@@ -27,21 +28,54 @@ const CreateWalkInTab = () => {
   const loadInitialData = async () => {
     try {
       setLoading(true);
-      const [usersData, batteriesData] = await Promise.all([
-        getUsers({ page: 1, size: 100 }),
-        getAllBatteries(1, 100) // Get first 100 batteries
-      ]);
+      const usersData = await getUsers({ page: 1, size: 100 });
       
       // Filter for drivers only
       const driversOnly = usersData.filter(u => u.role === 'DRIVER');
       setDrivers(driversOnly);
+      
+      // For walk-in, we'll load batteries when vehicle is selected and we have station context
+      // For now, load all batteries as fallback
+      const batteriesData = await getAllBatteries(1, 100);
       setBatteries(batteriesData.filter(b => b.status === 'FULL'));
-      console.log('Batteries loaded:', batteriesData.length, 'FULL batteries:', batteriesData.filter(b => b.status === 'FULL').length);
     } catch (e) {
       setError('Không thể tải dữ liệu: ' + (e?.message || ''));
     } finally {
       setLoading(false);
     }
+  };
+
+  // Load batteries for specific station when vehicle is selected
+  const handleVehicleChange = async (vehicleId) => {
+    setFormData(prev => ({ ...prev, vehicleId, batteryIds: [] }));
+    
+    if (!vehicleId) return;
+    
+    // Try to load station-specific batteries
+    // For walk-in scenario, we assume staff is creating for their own station
+    // Get station context from existing swap transactions or staff context
+    try {
+      // Import station staff service to get staff station
+      const { getAllUnconfirmedSwaps } = await import('../../../services/swapTransaction');
+      const swaps = await getAllUnconfirmedSwaps();
+      
+      if (swaps && swaps.length > 0) {
+        // Get station ID from existing swaps (staff's station)
+        const staffStationId = swaps[0]?.stationId;
+        if (staffStationId) {
+          const stationBatteries = await getBatteriesByStation(staffStationId);
+          setBatteries(stationBatteries.filter(b => b.status === 'FULL'));
+          setStationId(staffStationId);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Could not load station-specific batteries, using all batteries:', e);
+    }
+    
+    // Fallback to all batteries if station detection fails
+    const allBatteries = await getAllBatteries(1, 100);
+    setBatteries(allBatteries.filter(b => b.status === 'FULL'));
   };
 
   const handleDriverChange = async (driverId) => {
@@ -184,7 +218,7 @@ const CreateWalkInTab = () => {
               </label>
               <select
                 value={formData.vehicleId}
-                onChange={(e) => setFormData(prev => ({ ...prev, vehicleId: e.target.value, batteryIds: [] }))}
+                onChange={(e) => handleVehicleChange(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0028b8] focus:border-transparent disabled:bg-gray-100"
                 required
                 disabled={!formData.driverId}

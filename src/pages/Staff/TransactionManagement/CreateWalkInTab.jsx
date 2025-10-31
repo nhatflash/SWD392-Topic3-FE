@@ -149,7 +149,6 @@ const CreateWalkInTab = () => {
       
       setSuccess('Tạo đơn walk-in thành công!');
       setFormData({ driverId: '', vehicleId: '', batteryIds: [], notes: '' });
-      setSelectedDriver(null);
       setDriverVehicles([]);
       
       // Reload data
@@ -300,7 +299,6 @@ const CreateWalkInTab = () => {
                       <div>
                         <p className="font-semibold text-gray-900">{battery.model}</p>
                         <p className="text-sm text-gray-600">SN: {battery.serialNumber}</p>
-                        <p className="text-sm text-gray-600">SoH: {battery.soh}% | SoC: {battery.soc}%</p>
                       </div>
                       {formData.batteryIds.includes(battery.batteryId || battery.id) && (
                         <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">

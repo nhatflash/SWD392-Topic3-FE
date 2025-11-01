@@ -24,6 +24,59 @@ export async function getAllBatteries(page = 1, size = 20) {
 }
 
 /**
+ * Get ALL batteries across all pages (for admin dashboard)
+ * Role: ADMIN
+ */
+export async function getAllBatteriesComplete() {
+  try {
+    // First, get the first page to check total count/pages
+    const firstPageRes = await API.get('/api/battery/all', { params: { page: 1, size: 100 } });
+    const firstPageData = firstPageRes?.data?.data;
+    
+    // If it's just an array, return it
+    if (Array.isArray(firstPageData)) {
+      return firstPageData;
+    }
+    
+    // If it's paginated, check if we need more pages
+    if (firstPageData?.content && Array.isArray(firstPageData.content)) {
+      const { content, totalPages = 1, totalElements = content.length } = firstPageData;
+      
+      // If only one page or got all elements, return first page content
+      if (totalPages <= 1 || content.length >= totalElements) {
+        return content;
+      }
+      
+      // Otherwise, get all pages
+      const allBatteries = [...content];
+      const promises = [];
+      
+      for (let page = 2; page <= totalPages; page++) {
+        promises.push(
+          API.get('/api/battery/all', { params: { page, size: 100 } })
+            .then(res => res?.data?.data?.content || [])
+            .catch(() => [])
+        );
+      }
+      
+      const additionalPages = await Promise.all(promises);
+      additionalPages.forEach(pageContent => {
+        if (Array.isArray(pageContent)) {
+          allBatteries.push(...pageContent);
+        }
+      });
+      
+      return allBatteries;
+    }
+    
+    return [];
+  } catch (error) {
+    console.error('Failed to get all batteries:', error);
+    return [];
+  }
+}
+
+/**
  * Get battery details by ID
  * Role: ADMIN
  * @param {string} batteryId - UUID of battery
@@ -43,51 +96,6 @@ export async function getBatteryById(batteryId) {
 export async function addNewBattery(stationId, payload) {
   const res = await API.post(`/api/battery/station/${stationId}`, payload);
   return res?.data?.data;
-}
-
-/**
- * Get battery inventory for current staff's station (uses authentication context)
- * Role: STAFF - automatically gets station from user context
- * @param {string} status - BatteryStatus enum value (optional, if not provided gets all)
- * @param {number} page - Page index (1-based)
- */
-export async function getStaffBatteryInventory(status = null, page = 1) {
-  try {
-    // This API uses the authenticated user's station context
-    // If no status provided, we need to get all statuses
-    if (!status) {
-      const statuses = ['FULL', 'IN_USE', 'CHARGING', 'MAINTENANCE', 'FAULTY', 'RETIRED'];
-      const allBatteries = [];
-      
-      // Note: This assumes the backend API requires stationId, but according to the 
-      // controller code, it should use the authenticated user's station.
-      // We'll try calling with each status to get all batteries
-      const promises = statuses.map(s => {
-        // Need to call the correct endpoint that uses authenticated user's station
-        return API.get('/api/battery/station/current/status', { 
-          params: { status: s, page } 
-        }).then(res => res?.data?.data || []).catch(() => []);
-      });
-      
-      const results = await Promise.all(promises);
-      results.forEach(batteries => {
-        if (Array.isArray(batteries)) {
-          allBatteries.push(...batteries);
-        }
-      });
-      
-      return allBatteries;
-    } else {
-      // Get batteries for specific status
-      const res = await API.get('/api/battery/station/current/status', { 
-        params: { status, page } 
-      });
-      return res?.data?.data ?? [];
-    }
-  } catch (error) {
-    console.error('Failed to get staff battery inventory:', error);
-    return [];
-  }
 }
 
 // ============= Battery Model CRUD =============
@@ -133,6 +141,91 @@ export const getBatteryModels = getAllBatteryModels;
 export async function updateBatteryModel(modelId, payload) {
   const res = await API.patch(`/api/battery/model/${modelId}`, payload);
   return res?.data?.data;
+}
+
+// ============= Staff Station Functions =============
+
+/**
+ * Get current staff's station information using station-staff API
+ * @returns {Promise<Object>} Station info with {stationId, stationName}
+ */
+export async function getCurrentStaffStation() {
+  try {
+    // Get all staff and find current user's staff info
+    const res = await API.get('/api/station-staff/all');
+    const allStaff = res?.data?.data || [];
+    
+    // Get current user info to match
+    const { getCurrentProfile } = await import('./user');
+    const profile = await getCurrentProfile();
+    
+    if (!profile?.userId && !profile?.id) {
+      throw new Error('Cannot get current user ID');
+    }
+    
+    const currentUserId = profile.userId || profile.id;
+    
+    // Find staff record that matches current user
+    const currentStaff = allStaff.find(staff => 
+      String(staff.staffId) === String(currentUserId)
+    );
+    
+    if (!currentStaff) {
+      throw new Error('Staff chưa được phân công vào trạm nào');
+    }
+    
+    return {
+      stationId: currentStaff.stationId,
+      stationName: currentStaff.stationName
+    };
+  } catch (error) {
+    console.error('Failed to get current staff station:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get battery inventory for current staff's station
+ * @returns {Promise<Array>} Array of batteries for all statuses
+ */
+export async function getStaffBatteryInventory() {
+  try {
+    // Get staff's station info
+    const stationInfo = await getCurrentStaffStation();
+    
+    if (!stationInfo?.stationId) {
+      throw new Error('Staff chưa được phân công vào trạm nào');
+    }
+
+    // Get batteries for all statuses at this station
+    const statuses = ['FULL', 'IN_USE', 'CHARGING', 'MAINTENANCE', 'FAULTY', 'RETIRED'];
+    const allBatteries = [];
+    
+    const promises = statuses.map(async (status) => {
+      try {
+        const res = await API.get(`/api/battery/station/${stationInfo.stationId}/status`, { 
+          params: { status, page: 1 } 
+        });
+        return res?.data?.data || [];
+      } catch (error) {
+        console.warn(`Failed to get batteries for status ${status}:`, error?.response?.status);
+        return [];
+      }
+    });
+    
+    const results = await Promise.all(promises);
+    for (const batteries of results) {
+      if (Array.isArray(batteries)) {
+        allBatteries.push(...batteries);
+      }
+    }
+    
+    console.log(`Found ${allBatteries.length} batteries for station ${stationInfo.stationId} (${stationInfo.stationName})`);
+    return allBatteries;
+  } catch (error) {
+    console.error('Failed to get staff battery inventory:', error);
+    throw error;
+  }
 }
 
 // ============= Helper for fetching batteries by station =============

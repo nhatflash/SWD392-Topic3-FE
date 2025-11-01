@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { useAuth } from '../../../context/AuthContext';
-import { getAllBatteryModels, getAllBatteries } from '../../../services/battery';
+import { getAllBatteryModels, getStaffBatteryInventory, getCurrentStaffStation } from '../../../services/battery';
 import { getOperationalStations } from '../../../services/station';
 import Header from '../../../components/Header';
 
@@ -25,49 +25,40 @@ const BatteryManagement = () => {
       setError('');
 
       // Load models and batteries in parallel
-      const [modelsData, batteriesData, stationsData] = await Promise.all([
+      const [modelsData, batteriesData] = await Promise.all([
         getAllBatteryModels().catch(() => []),
-        getAllBatteries().catch(() => []),
-        getOperationalStations().catch(() => [])
+        getStaffBatteryInventory().catch((err) => {
+          console.error('Failed to get staff battery inventory:', err);
+          throw err; // Re-throw to handle in outer catch
+        })
       ]);
 
       setBatteryModels(modelsData);
-
-      // Try to find staff's station name
-      // For now, we'll need to determine which station this staff belongs to
-      // If user object has station info, use it; otherwise filter might show all batteries
-      let staffStationName = null;
+      setBatteries(batteriesData);
       
-      // Check if user has station information (this depends on your backend user response)
-      if (user?.stationName) {
-        staffStationName = user.stationName;
-      } else if (user?.stationId && stationsData.length > 0) {
-        const staffStation = stationsData.find(s => 
-          String(s.id) === String(user.stationId) || 
-          String(s.stationId) === String(user.stationId)
-        );
-        if (staffStation) {
-          staffStationName = staffStation.name;
+      // Try to get station name for display
+      try {
+        const stationInfo = await getCurrentStaffStation();
+        if (stationInfo?.stationName) {
+          setStationName(stationInfo.stationName);
         }
+      } catch (stationError) {
+        console.warn('Could not get station info:', stationError);
+        setStationName('Trạm của bạn');
       }
-
-      setStationName(staffStationName || '');
-
-      // Filter batteries for this station
-      let filteredBatteries = batteriesData;
-      if (staffStationName) {
-        filteredBatteries = batteriesData.filter(b => {
-          if (!b?.currentStationName) return false;
-          const batteryStation = String(b.currentStationName).trim().toLowerCase();
-          const currentStation = String(staffStationName).trim().toLowerCase();
-          return batteryStation === currentStation;
-        });
-      }
-
-      setBatteries(filteredBatteries);
+      
+      console.log(`Loaded ${batteriesData.length} batteries for staff's station`);
     } catch (e) {
       console.error('Failed to load battery management data:', e);
-      setError(e?.response?.data?.message || e?.message || 'Không thể tải dữ liệu');
+      const errorMessage = e?.response?.data?.message || e?.message || 'Không thể tải dữ liệu';
+      
+      if (errorMessage.includes('chưa được phân công') || errorMessage.includes('not found') || errorMessage.includes('Station staff')) {
+        setError('Bạn chưa được phân công vào trạm nào. Vui lòng liên hệ admin để được phân công trạm.');
+      } else {
+        setError(`Không thể tải dữ liệu: ${errorMessage}`);
+      }
+      
+      setBatteries([]);
     } finally {
       setLoading(false);
     }

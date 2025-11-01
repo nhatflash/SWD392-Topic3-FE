@@ -636,7 +636,18 @@ const StationDetail = () => {
         )}
         
         <div className="p-6">
-          <h2 className="text-2xl font-bold mb-4">{station.name}</h2>
+          <div className="flex items-center gap-3 mb-4">
+            <h2 className="text-2xl font-bold">{station.name}</h2>
+            {station.averageRating && (
+              <div className="flex items-center gap-1 bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-sm font-semibold">
+                ⭐ {typeof station.averageRating === 'object' && station.averageRating.rate 
+                  ? station.averageRating.rate 
+                  : typeof station.averageRating === 'number' 
+                  ? station.averageRating 
+                  : '0'}
+              </div>
+            )}
+          </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Left Column */}

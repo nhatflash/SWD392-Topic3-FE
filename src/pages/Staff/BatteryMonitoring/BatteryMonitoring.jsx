@@ -1,5 +1,3 @@
-/* eslint-disable jsx-a11y/label-has-associated-control */
-/* eslint-disable no-nested-ternary */
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
@@ -7,7 +5,9 @@ import { getBatteryStatesByStation, getBatteryStateById } from '../../../service
 import { getOperationalStations } from '../../../services/station';
 import { getAccessToken } from '../../../services/auth';
 import { EventSourcePolyfill } from 'event-source-polyfill';
+import { recordSoHDataPoint } from '../../../services/sohTracking';
 import Header from '../../../components/Header';
+import BatteryDetailModal from '../../../components/BatteryDetailModal';
 
 const BatteryMonitoring = () => {
   const navigate = useNavigate();
@@ -17,6 +17,7 @@ const BatteryMonitoring = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [connected, setConnected] = useState(false);
+  const [selectedBattery, setSelectedBattery] = useState(null);
   const eventSourceRef = useRef(null);
 
   // Load all stations on mount (no staff /me dependency)
@@ -116,6 +117,15 @@ const BatteryMonitoring = () => {
           const batteryState = JSON.parse(event.data);
           console.log('Battery update received:', batteryState);
 
+          // Record SoH data point for tracking
+          if (batteryState.stateOfHealth != null) {
+            recordSoHDataPoint(
+              batteryState.batteryId,
+              batteryState.stateOfHealth,
+              batteryState.status
+            );
+          }
+
           // Chỉ hiển thị pin thuộc trạm đang chọn.
           // Nếu pin chuyển sang trạm khác, loại khỏi danh sách hiện tại.
           setBatteryStates(prev => {
@@ -184,89 +194,7 @@ const BatteryMonitoring = () => {
     try {
       // Fetch fresh state
       const freshState = await getBatteryStateById(batteryState.batteryId);
-      
-      Swal.fire({
-        title: `Chi tiết pin: ${freshState.serialNumber}`,
-        width: '800px',
-        html: `
-          <div class="space-y-4 text-left">
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Số serial</label>
-                <p class="text-gray-900 font-mono">${freshState.serialNumber}</p>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Loại pin</label>
-                <p class="text-gray-900">${freshState.batteryType}</p>
-              </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
-                <p class="text-gray-900">
-                  <span class="px-2 py-1 text-xs font-semibold rounded-full ${
-                    freshState.status === 'FULL' ? 'bg-green-100 text-green-800' :
-                    freshState.status === 'IN_USE' ? 'bg-blue-100 text-blue-800' :
-                    freshState.status === 'CHARGING' ? 'bg-yellow-100 text-yellow-800' :
-                    freshState.status === 'MAINTENANCE' ? 'bg-orange-100 text-orange-800' :
-                    freshState.status === 'FAULTY' ? 'bg-red-100 text-red-800' :
-                    'bg-gray-100 text-gray-800'
-                  }">
-                    ${freshState.status}
-                  </span>
-                </p>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Mức sạc</label>
-                <p class="text-gray-900 font-semibold text-xl">${freshState.chargeLevel}%</p>
-              </div>
-            </div>
-
-            <div class="grid grid-cols-3 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Nhiệt độ</label>
-                <p class="text-gray-900 font-semibold ${freshState.temperature > 50 ? 'text-red-600' : ''}">${freshState.temperature} °C</p>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Điện áp</label>
-                <p class="text-gray-900 font-semibold">${freshState.voltage} V</p>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Dòng điện</label>
-                <p class="text-gray-900 font-semibold">${freshState.current} A</p>
-              </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Công suất</label>
-                <p class="text-gray-900 font-semibold">${freshState.powerKwh} kWh</p>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Sức khỏe pin (SoH)</label>
-                <p class="text-gray-900 font-semibold ${freshState.stateOfHealth < 60 ? 'text-orange-600' : ''}">${freshState.stateOfHealth}%</p>
-              </div>
-            </div>
-
-            ${freshState.status === 'CHARGING' && freshState.estimatedMinutesToFull ? `
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Thời gian sạc đầy dự kiến</label>
-                <p class="text-gray-900 font-semibold">${freshState.estimatedMinutesToFull} phút</p>
-              </div>
-            ` : ''}
-
-            ${freshState.abnormal ? `
-              <div class="bg-red-50 border border-red-200 rounded p-3">
-                <label class="block text-sm font-medium text-red-700 mb-1">⚠️ Cảnh báo</label>
-                <p class="text-red-900 font-semibold">${freshState.alertLevel}: ${freshState.abnormalReason}</p>
-              </div>
-            ` : ''}
-          </div>
-        `,
-        confirmButtonText: 'Đóng',
-        confirmButtonColor: '#0028b8'
-      });
+      setSelectedBattery(freshState);
     } catch (e) {
       console.error('Failed to get battery detail:', e);
       Swal.fire('Lỗi', 'Không thể tải chi tiết pin', 'error');
@@ -404,17 +332,29 @@ const BatteryMonitoring = () => {
                       <span>Mức sạc</span>
                       <span className="font-semibold">{state.chargeLevel}%</span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="w-full bg-gray-200 rounded-full h-2 relative overflow-hidden">
                       <div 
-                        className={`h-2 rounded-full transition-all ${
+                        className={`h-2 rounded-full transition-all duration-700 ${
                           state.chargeLevel > 80 ? 'bg-green-500' :
                           state.chargeLevel > 50 ? 'bg-yellow-500' :
                           state.chargeLevel > 20 ? 'bg-orange-500' :
                           'bg-red-500'
-                        }`}
+                        } ${state.status === 'CHARGING' ? 'relative' : ''}`}
                         style={{ width: `${state.chargeLevel}%` }}
-                      />
+                      >
+                        {state.status === 'CHARGING' && (
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30 animate-pulse" />
+                        )}
+                      </div>
                     </div>
+                    {state.status === 'CHARGING' && (
+                      <div className="flex items-center gap-1 mt-1">
+                        <svg className="w-3 h-3 text-yellow-600 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" />
+                        </svg>
+                        <span className="text-xs text-yellow-700 font-medium">Đang sạc...</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2 text-sm">
@@ -449,10 +389,25 @@ const BatteryMonitoring = () => {
                   )}
 
                   {state.status === 'CHARGING' && state.estimatedMinutesToFull > 0 && (
-                    <div className="mt-3 pt-3 border-t">
-                      <p className="text-xs text-gray-600">
-                        ⏱️ Đầy trong ~{state.estimatedMinutesToFull} phút
-                      </p>
+                    <div className="mt-3 pt-3 border-t border-yellow-200 bg-yellow-50 -mx-4 -mb-4 px-4 py-3 rounded-b-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="text-sm font-medium text-yellow-800">
+                            Thời gian sạc đầy
+                          </span>
+                        </div>
+                        <span className="text-sm font-bold text-yellow-900">
+                          ~{Math.floor(state.estimatedMinutesToFull / 60)}h {state.estimatedMinutesToFull % 60}m
+                        </span>
+                      </div>
+                      <div className="mt-2 text-xs text-yellow-700">
+                        {state.chargeLevel < 50 ? '🔋 Sạc chậm (35% → 80%)' :
+                         state.chargeLevel < 80 ? '⚡ Sạc nhanh (80% → 95%)' :
+                         '🐌 Sạc trickle (95% → 100%)'}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -460,6 +415,14 @@ const BatteryMonitoring = () => {
             </div>
           )}
         </div>
+
+        {/* Battery Detail Modal */}
+        {selectedBattery && (
+          <BatteryDetailModal
+            batteryState={selectedBattery}
+            onClose={() => setSelectedBattery(null)}
+          />
+        )}
       </div>
     </div>
   );

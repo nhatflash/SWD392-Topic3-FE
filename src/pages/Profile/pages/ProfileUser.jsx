@@ -1,13 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../../context/AuthContext';
-import { getProfile, logout as apiLogout } from '../../../services/auth';
+import { logout as apiLogout } from '../../../services/auth';
 import { getCurrentProfile, resolveAssetUrl } from '../../../services/user';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import Sidebar from '../components/Sidebar';
 import Vehicle from './vehicles/Vehicle';
+import MyOrders from '../../Driver/MyOrders/MyOrders';
 
-const ProfileUser = () => {
+// Component for orders icon
+const OrdersIcon = () => (
+  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+    <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+  </svg>
+);
+
+function ProfileUser() {
   const { user, setUser, logout, hasRole } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -106,7 +114,7 @@ const ProfileUser = () => {
   let dob = dobRaw;
   if (dobRaw) {
     const d = new Date(dobRaw);
-    if (!isNaN(d.getTime())) {
+    if (!Number.isNaN(d.getTime())) {
       dob = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
     }
   }
@@ -134,6 +142,22 @@ const ProfileUser = () => {
     await Swal.fire({ icon: 'success', title: 'Đã đăng xuất', showConfirmButton: false, timer: 900 });
     navigate('/mainpage/HomePage');
   };
+
+  const getSidebarItems = () => {
+    if (hasRole("ADMIN") || hasRole("STAFF")) {
+      return [
+        { key: "profile", label: "Thông tin cá nhân" },
+        //{ key: "vehicles", label: "Phương tiện" }
+      ];
+    } else if (hasRole("DRIVER")) {
+      return [
+        { key: "profile", label: "Thông tin cá nhân" },
+        { key: "vehicles", label: "Phương tiện" },
+        { key: "orders", label: "Đơn hàng của tôi", icon: OrdersIcon }
+      ];
+    }
+    return undefined;
+  };
   return (
     <div className="min-h-screen bg-gray-50 pt-24 flex">
       {/* Sidebar cố định bên trái */}
@@ -142,14 +166,7 @@ const ProfileUser = () => {
         onSelect={setActive}
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen(v => !v)}
-        items={
-          hasRole("ADMIN") || hasRole("STAFF")
-            ? [
-                { key: "profile", label: "Thông tin cá nhân" },
-                //{ key: "vehicles", label: "Phương tiện" }
-              ]
-            : undefined
-        }
+        items={getSidebarItems()}
         onBack={() => navigate("/mainpage/HomePage")}
         onLogout={handleLogout}
       />
@@ -265,8 +282,9 @@ const ProfileUser = () => {
             </div>
           </div>
         )}
-  
+
         {active === "vehicles" && <Vehicle />}
+        {active === "orders" && <MyOrders />}
       </div>
     </div>
   ); 

@@ -13,6 +13,9 @@ import StaffManagement from './pages/DashBoard/Staff/StaffManagement';
 import StaffManagementForStaff from './pages/Staff/StaffManagement/StaffManagement';
 import BatteryManagement from './pages/Staff/BatteryManagement/BatteryManagement';
 import BatteryMonitoring from './pages/Staff/BatteryMonitoring/BatteryMonitoring';
+import TransactionManagement from './pages/Staff/TransactionManagement/TransactionManagement';
+import MyOrders from './pages/Driver/MyOrders/MyOrders';
+import PaymentReturn from './pages/Payment/PaymentReturn/PaymentReturn';
 
 function App() {
   return (
@@ -26,6 +29,7 @@ function App() {
         <Route path="/staff/dashboard" element={<StaffDashboard />} />
         <Route path="/staff/batteries" element={<BatteryManagement />} />
         <Route path="/staff/battery-monitoring" element={<BatteryMonitoring />} />
+        <Route path="/staff/transactions" element={<TransactionManagement />} />
         <Route path="/stations" element={<Stations />} />
         <Route path="/stations/:id" element={<PublicStationDetail />} />
         <Route path="/dashboard/admin/station/:id" element={<StationDetail />} />
@@ -35,6 +39,13 @@ function App() {
         {/* Profile routes */}
         <Route path="/profile" element={<ProfileUser />} />
         <Route path="/profile/edit" element={<EditProfile />} />
+
+        {/* Driver routes */}
+        <Route path="/driver/orders" element={<MyOrders />} />
+        <Route path="/driver/my-orders" element={<MyOrders />} />
+
+        {/* Payment routes */}
+        <Route path="/payment/return" element={<PaymentReturn />} />
 
         {/* Fallback route */}
         <Route path="*" element={<HomePage />} />

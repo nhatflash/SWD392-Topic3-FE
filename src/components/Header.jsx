@@ -1,13 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { useAuth } from '../context/AuthContext';
+import BookingBatteryModal from './BookingBatteryModal';
 import API, { logout as apiLogout } from '../services/auth';
 import { resolveAssetUrl } from '../services/user';
 
 const Header = () => {
   const navigate = useNavigate();
-  const { logout: contextLogout, user, isAuthenticated } = useAuth();
+  const { logout: contextLogout, user, isAuthenticated, hasRole } = useAuth();
+  const [showBooking, setShowBooking] = useState(false);
 
   const handleLogout = async () => {
     const res = await Swal.fire({
@@ -60,9 +62,22 @@ const Header = () => {
             </svg>
             <span className="font-medium">Trạm</span>
           </button>
+          {/* Nút đặt lịch đổi/thuê pin cho Driver */}
+          {hasRole?.('DRIVER') && (
+            <button
+              onClick={() => setShowBooking(true)}
+              className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#0028b8] text-white rounded-full shadow hover:bg-[#335cff] transition-colors text-sm"
+              aria-label="Đặt lịch đổi/thuê pin"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Đặt lịch đổi/thuê pin
+            </button>
+          )}
         </nav>
       </div>
-      <div className="flex items-center gap-4">
+  <div className="flex items-center gap-4">
         {isAuthenticated && (
           <button onClick={() => navigate('/profile')} aria-label="Profile" className="p-1 rounded-full bg-white shadow">
             {(() => {
@@ -91,6 +106,8 @@ const Header = () => {
           {isAuthenticated ? 'Đăng xuất' : 'Đăng nhập'}
         </button>
       </div>
+      {/* Modal đặt lịch đổi/thuê pin */}
+      <BookingBatteryModal open={showBooking} onClose={() => setShowBooking(false)} onBooked={() => {}} />
     </header>
   );
 };

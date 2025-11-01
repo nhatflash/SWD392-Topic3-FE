@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import PropTypes from 'prop-types';
-import { getAccessToken, clearTokens, getProfile } from '../services/auth';
+import { getAccessToken, clearTokens, getProfile, refresh as refreshTokenAPI, getRefreshToken } from '../services/auth';
 
 const AuthContext = createContext(null);
 
@@ -21,6 +21,29 @@ function parseJwt(token) {
     // If decoding fails, return null (token missing or malformed)
     console.warn('parseJwt failed', e);
     return null;
+  }
+}
+
+function isTokenExpired(token) {
+  try {
+    const payload = parseJwt(token);
+    if (!payload || !payload.exp) return true;
+    // Token is considered expired if it expires in less than 10 seconds
+    return Date.now() >= (payload.exp * 1000 - 10000);
+  } catch {
+    return true;
+  }
+}
+
+function shouldRefreshToken(token) {
+  try {
+    const payload = parseJwt(token);
+    if (!payload || !payload.exp) return false;
+    // Refresh if token expires in less than 2 minutes (120000 ms)
+    // BE access token = 15 min, so we refresh at ~13 min mark
+    return Date.now() >= (payload.exp * 1000 - 120000);
+  } catch {
+    return false;
   }
 }
 
@@ -67,6 +90,16 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const token = getAccessToken();
     if (token) {
+      // Check if token is expired
+      if (isTokenExpired(token)) {
+        console.warn('Access token expired on mount, logging out');
+        clearTokens();
+        setUser(null);
+        setIsAuthenticated(false);
+        try { localStorage.removeItem('user'); } catch {}
+        return;
+      }
+
       const payload = parseJwt(token);
       const derived = userFromTokenPayload(payload);
       if (derived) {
@@ -88,12 +121,74 @@ export const AuthProvider = ({ children }) => {
           }
         })();
         setIsAuthenticated(true);
+      }
+    } else {
+      setUser(null);
+      setIsAuthenticated(false);
+    }
+
+    // Setup interval to check token expiry and proactively refresh
+    // Check every 30 seconds (BE access token = 15 min, we refresh at ~13 min)
+    const interval = setInterval(async () => {
+      const currentToken = getAccessToken();
+      const currentRefreshToken = getRefreshToken();
+      
+      console.log('🔍 [Token Check] Checking token status...');
+      
+      if (!currentToken) {
+        // No access token, clear everything
+        console.warn('⚠️ [Token Check] No access token found, logging out');
+        clearTokens();
+        setUser(null);
+        setIsAuthenticated(false);
+        try { localStorage.removeItem('user'); } catch {}
         return;
       }
-    }
-  
-    setUser(null);
-    setIsAuthenticated(false);
+
+      // If access token is expired, logout
+      if (isTokenExpired(currentToken)) {
+        console.warn('⏰ [Token Check] Access token EXPIRED, logging out');
+        clearTokens();
+        setUser(null);
+        setIsAuthenticated(false);
+        try { localStorage.removeItem('user'); } catch {}
+        return;
+      }
+
+      // Proactively refresh if token is close to expiry (< 2 minutes left)
+      // BE access token = 15 min, refresh at ~13 min to avoid disruption
+      if (shouldRefreshToken(currentToken) && currentRefreshToken) {
+        try {
+          await refreshTokenAPI(currentRefreshToken);
+        } catch (e) {
+          console.error('❌ [Token Refresh] FAILED, logging out:', e?.message);
+          clearTokens();
+          setUser(null);
+          setIsAuthenticated(false);
+          try { localStorage.removeItem('user'); } catch {}
+        }
+      } else {
+        console.log('✓ [Token Check] Token is valid, no refresh needed');
+      }
+    }, 30000); // Check every 30 seconds
+
+    // Listen for storage changes (cross-tab logout detection)
+    const handleStorageChange = (e) => {
+      // If tokens are cleared in another tab, logout in this tab too
+      if (e.key === 'accessToken' && e.newValue === null) {
+        console.warn('🚪 Detected logout in another tab, logging out...');
+        setUser(null);
+        setIsAuthenticated(false);
+        try { localStorage.removeItem('user'); } catch {}
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   const login = (userProfile, tokens) => {

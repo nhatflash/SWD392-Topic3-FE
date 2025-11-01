@@ -14,10 +14,11 @@ const Stations = () => {
     try {
       setLoading(true);
       setError('');
-      const data = await getOperationalStations();
+      // Trang public chỉ hiển thị trạm OPERATIONAL
+      const data = await getOperationalStations(1, 100); // page=1, size=100 để lấy nhiều trạm
       setStations(Array.isArray(data) ? data : []);
     } catch (e) {
-      console.error('Failed to load stations for homepage:', e);
+      console.error('Failed to load stations:', e);
       setError(e?.response?.data?.message || e?.message || 'Không thể tải danh sách trạm');
     } finally {
       setLoading(false);
@@ -28,8 +29,9 @@ const Stations = () => {
 
   const filtered = stations.filter(s => {
     const matchesQuery = !query || (s.name || '').toLowerCase().includes(query.toLowerCase());
-    const matchesStatus = statusFilter === 'ALL' || (s.status === statusFilter);
-    return matchesQuery && matchesStatus;
+    // Vì chỉ load OPERATIONAL rồi, nên filter status chỉ dùng để lọc trên client
+    // Nhưng tất cả đều là OPERATIONAL nên statusFilter không có tác dụng
+    return matchesQuery;
   });
 
   return (
@@ -66,14 +68,7 @@ const Stations = () => {
             )}
           </div>
 
-          <select className="border rounded-md px-3 py-2 text-sm bg-white" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-            <option value="ALL">Tất cả</option>
-            <option value="OPERATIONAL">OPERATIONAL</option>
-            <option value="MAINTENANCE">MAINTENANCE</option>
-            <option value="CLOSED">CLOSED</option>
-          </select>
-
-          <button className="px-4 py-2 bg-[#0028b8] text-white rounded-md shadow hover:bg-[#335cff]" onClick={load}>Tải lại</button>
+          <button className="px-4 py-2 bg-[#0028b8] text-white rounded-md shadow hover:bg-[#335cff]" onClick={() => load()}>Tải lại</button>
         </div>
       </div>
 
@@ -92,50 +87,65 @@ const Stations = () => {
               <div className="col-span-full p-8 bg-white rounded shadow text-center text-gray-500">Không tìm thấy trạm nào.</div>
             )}
 
-            {filtered.map((s, idx) => (
-              <div key={s.id || s.stationId || idx} className="bg-white rounded-lg shadow overflow-hidden">
-                <div className="relative">
-                  <img src={s.imageUrl || '/placeholder.png'} alt={s.name} className="w-full h-40 object-cover" />
-                  <span className={`absolute top-3 right-3 inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${s.status === 'OPERATIONAL' ? 'bg-green-100 text-green-700' : s.status === 'MAINTENANCE' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
-                    {s.status}
-                  </span>
-                </div>
-                <div className="p-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold truncate">{s.name}</h3>
-                    <div className="text-sm text-gray-500">{s.totalCapacity} pin</div>
+            {filtered.map((s, idx) => {
+              const statusMap = {
+                OPERATIONAL: { label: 'Đang hoạt động', color: 'bg-green-100 text-green-700', icon: '✅' },
+                MAINTENANCE: { label: 'Bảo trì', color: 'bg-yellow-100 text-yellow-700', icon: '🛠️' },
+                CLOSED: { label: 'Đã đóng', color: 'bg-red-100 text-red-700', icon: '⛔' },
+              };
+              const status = statusMap[s.status] || { label: s.status, color: 'bg-gray-100 text-gray-700', icon: '' };
+              return (
+                <div key={s.stationId || s.id || idx} className="bg-white rounded-lg shadow overflow-hidden">
+                  <div className="relative">
+                    <img src={s.imageUrl || '/placeholder.png'} alt={s.name} className="w-full h-40 object-cover" />
+                    <span className={`absolute top-3 right-3 inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${status.color}`}>
+                      <span className="mr-1">{status.icon}</span>{status.label}
+                    </span>
                   </div>
-                  <p className="text-sm text-gray-500 mt-1 truncate">{s.description}</p>
-
-                  <div className="mt-3 text-sm text-gray-700">
+                  <div className="p-4">
                     <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-xs text-gray-500">Địa chỉ</div>
-                        <div className="text-sm">{s.address}</div>
+                      <h3 className="text-lg font-semibold truncate">{s.name}</h3>
+                      {s.averageRating && (
+                        <div className="flex items-center gap-1 bg-yellow-100 px-2 py-1 rounded">
+                          <span className="text-yellow-600">⭐</span>
+                          <span className="font-semibold text-yellow-700 text-sm">
+                            {s.averageRating.rate ?? s.averageRating}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-500 mt-1 truncate">{s.description}</p>
+
+                    <div className="mt-3 text-sm text-gray-700">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-xs text-gray-500">Địa chỉ</div>
+                          <div className="text-sm">{s.address}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-xs text-gray-500">Vị trí trống</div>
+                          <div className="text-sm">{s.idleSwapBays}/{s.totalSwapBays}</div>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-xs text-gray-500">Vị trí trống</div>
-                        <div className="text-sm">{s.idleSwapBays}/{s.totalSwapBays}</div>
+                      <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
+                        <div>Số pin hiện có: <span className="font-semibold text-gray-700">{s.currentCapacity}</span></div>
+                        <div>Liên hệ: {s.contactPhone}</div>
+                        <div>{s.contactEmail}</div>
                       </div>
                     </div>
 
-                    <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
-                      <div>Liên hệ: {s.contactPhone}</div>
-                      <div>{s.contactEmail}</div>
+                    <div className="mt-4 pt-3 border-t">
+                      <button
+                        onClick={() => navigate(`/stations/${s.stationId || s.id}`)}
+                        className="w-full px-4 py-2 bg-[#0028b8] text-white rounded-md hover:bg-[#335cff] transition-colors text-sm font-medium"
+                      >
+                        Xem chi tiết
+                      </button>
                     </div>
-                  </div>
-
-                  <div className="mt-4 pt-3 border-t">
-                    <button
-                      onClick={() => navigate(`/stations/${s.id || s.stationId}`)}
-                      className="w-full px-4 py-2 bg-[#0028b8] text-white rounded-md hover:bg-[#335cff] transition-colors text-sm font-medium"
-                    >
-                      Xem chi tiết
-                    </button>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

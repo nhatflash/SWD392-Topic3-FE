@@ -10,14 +10,16 @@ import API from './auth';
 /**
  * Get all batteries (paginated)
  * Role: ADMIN
- * @param {number} page - Page index (1-based)
+ * @param {number} page - Page index (1-based for backend)
+ * @param {number} size - Page size
  */
-export async function getAllBatteries(page = 1) {
-  const res = await API.get('/api/battery/all', { params: { page } });
+export async function getAllBatteries(page = 1, size = 20) {
+  const res = await API.get('/api/battery/all', { params: { page, size } });
   const data = res?.data?.data;
   // Support both array and paginated { content: [] } shapes
   if (Array.isArray(data)) return data;
   if (data?.content && Array.isArray(data.content)) return data.content;
+  if (data?.items && Array.isArray(data.items)) return data.items;
   return [];
 }
 
@@ -44,16 +46,48 @@ export async function addNewBattery(stationId, payload) {
 }
 
 /**
- * Get battery inventory for a station by status
- * Role: STAFF
- * @param {string} status - BatteryStatus enum value
+ * Get battery inventory for current staff's station (uses authentication context)
+ * Role: STAFF - automatically gets station from user context
+ * @param {string} status - BatteryStatus enum value (optional, if not provided gets all)
  * @param {number} page - Page index (1-based)
  */
-export async function getBatteryInventory(status, page = 1) {
-  const params = { page };
-  if (status) params.status = status;
-  const res = await API.get('/api/battery/inventory', { params });
-  return res?.data?.data ?? [];
+export async function getStaffBatteryInventory(status = null, page = 1) {
+  try {
+    // This API uses the authenticated user's station context
+    // If no status provided, we need to get all statuses
+    if (!status) {
+      const statuses = ['FULL', 'IN_USE', 'CHARGING', 'MAINTENANCE', 'FAULTY', 'RETIRED'];
+      const allBatteries = [];
+      
+      // Note: This assumes the backend API requires stationId, but according to the 
+      // controller code, it should use the authenticated user's station.
+      // We'll try calling with each status to get all batteries
+      const promises = statuses.map(s => {
+        // Need to call the correct endpoint that uses authenticated user's station
+        return API.get('/api/battery/station/current/status', { 
+          params: { status: s, page } 
+        }).then(res => res?.data?.data || []).catch(() => []);
+      });
+      
+      const results = await Promise.all(promises);
+      results.forEach(batteries => {
+        if (Array.isArray(batteries)) {
+          allBatteries.push(...batteries);
+        }
+      });
+      
+      return allBatteries;
+    } else {
+      // Get batteries for specific status
+      const res = await API.get('/api/battery/station/current/status', { 
+        params: { status, page } 
+      });
+      return res?.data?.data ?? [];
+    }
+  } catch (error) {
+    console.error('Failed to get staff battery inventory:', error);
+    return [];
+  }
 }
 
 // ============= Battery Model CRUD =============
@@ -70,17 +104,25 @@ export async function defineBatteryModel(payload) {
 
 /**
  * Get all battery models (paginated)
- * Role: ADMIN
- * @param {number} page - Page index (1-based)
+ * Role: Public (no auth required based on BE @GetMapping without @PreAuthorize)
+ * @param {number} page - Page index (1-based for backend)
+ * @param {number} size - Page size
  */
-export async function getAllBatteryModels(page = 1) {
-  const res = await API.get('/api/battery/model', { params: { page } });
+export async function getAllBatteryModels(page = 1, size = 20) {
+  const res = await API.get('/api/battery/model', { params: { page, size } });
   const data = res?.data?.data;
   // Support both array and paginated { content: [] } shapes
   if (Array.isArray(data)) return data;
   if (data?.content && Array.isArray(data.content)) return data.content;
+  if (data?.items && Array.isArray(data.items)) return data.items;
   return [];
 }
+
+/**
+ * Alias for getAllBatteryModels - for driver use case
+ * @param {number} page - Page index (1-based), optional
+ */
+export const getBatteryModels = getAllBatteryModels;
 
 /**
  * Update a battery model
@@ -124,6 +166,39 @@ export async function getBatteriesByStation(stationId) {
     return await getBatteriesByStationAndStatus(stationId, 'FULL', 1);
   } catch (error) {
     console.error('Failed to get batteries by station:', error);
+    return [];
+  }
+}
+
+/**
+ * Get ALL batteries for a specific station (all statuses)
+ * For Battery Management page - shows all batteries regardless of status
+ * @param {string} stationId - Station UUID
+ */
+export async function getAllBatteriesByStation(stationId) {
+  try {
+    // Get batteries with all possible statuses
+    const statuses = ['FULL', 'IN_USE', 'CHARGING', 'MAINTENANCE', 'FAULTY', 'RETIRED'];
+    const allBatteries = [];
+    
+    // Fetch batteries for each status in parallel
+    const promises = statuses.map(status => 
+      getBatteriesByStationAndStatus(stationId, status, 1).catch(() => [])
+    );
+    
+    const results = await Promise.all(promises);
+    
+    // Combine all results
+    results.forEach(batteries => {
+      if (Array.isArray(batteries)) {
+        allBatteries.push(...batteries);
+      }
+    });
+    
+    console.log(`Total batteries found for station ${stationId}:`, allBatteries.length);
+    return allBatteries;
+  } catch (error) {
+    console.error('Failed to get all batteries by station:', error);
     return [];
   }
 }

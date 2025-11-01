@@ -12,8 +12,8 @@ export default defineConfig({
     proxy: {
       // Proxy API calls during development to avoid CORS
       '/api': {
-        // target: 'https://czf23bx8-8080.asse.devtunnels.ms',
-        target: 'http://localhost:8080',
+        target: 'https://czf23bx8-8080.asse.devtunnels.ms',
+        // target: 'http://localhost:8080',
         changeOrigin: true,
         secure: false,
       }

@@ -16,39 +16,44 @@ import BatteryMonitoring from './pages/Staff/BatteryMonitoring/BatteryMonitoring
 import TransactionManagement from './pages/Staff/TransactionManagement/TransactionManagement';
 import MyOrders from './pages/Driver/MyOrders/MyOrders';
 import PaymentReturn from './pages/Payment/PaymentReturn/PaymentReturn';
+import Layout from './components/Layout';
 
 function App() {
   return (
     <Router>
       <Routes>
-        {/* Main pages */}
-        <Route path="/mainpage" element={<HomePage />} />
+        {/* Public pages with Layout (Header + Footer) */}
+        <Route path="/mainpage" element={<Layout><HomePage /></Layout>} />
+        <Route path="/stations" element={<Layout><Stations /></Layout>} />
+        <Route path="/stations/:id" element={<Layout><PublicStationDetail /></Layout>} />
+        
+        {/* Auth pages - no header/footer */}
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
+        
+        {/* Admin/Staff pages - no footer (keep existing header if any) */}
         <Route path="/dashboard/admin" element={<Admin />} />
         <Route path="/staff/dashboard" element={<StaffDashboard />} />
         <Route path="/staff/batteries" element={<BatteryManagement />} />
         <Route path="/staff/battery-monitoring" element={<BatteryMonitoring />} />
         <Route path="/staff/transactions" element={<TransactionManagement />} />
-        <Route path="/stations" element={<Stations />} />
-        <Route path="/stations/:id" element={<PublicStationDetail />} />
         <Route path="/dashboard/admin/station/:id" element={<StationDetail />} />
         <Route path="/dashboard/admin/staff" element={<StaffManagement />} />
         <Route path="/staff/manage-staff" element={<StaffManagementForStaff />} />
 
-        {/* Profile routes */}
-        <Route path="/profile" element={<ProfileUser />} />
-        <Route path="/profile/edit" element={<EditProfile />} />
+        {/* User pages with Layout */}
+        <Route path="/profile" element={<Layout><ProfileUser /></Layout>} />
+        <Route path="/profile/edit" element={<Layout><EditProfile /></Layout>} />
 
-        {/* Driver routes */}
-        <Route path="/driver/orders" element={<MyOrders />} />
-        <Route path="/driver/my-orders" element={<MyOrders />} />
+        {/* Driver pages with Layout */}
+        <Route path="/driver/orders" element={<Layout><MyOrders /></Layout>} />
+        <Route path="/driver/my-orders" element={<Layout><MyOrders /></Layout>} />
 
-        {/* Payment routes */}
-        <Route path="/payment/return" element={<PaymentReturn />} />
+        {/* Payment pages - minimal layout */}
+        <Route path="/payment/return" element={<Layout showHeader={false}><PaymentReturn /></Layout>} />
 
         {/* Fallback route */}
-        <Route path="*" element={<HomePage />} />
+        <Route path="*" element={<Layout><HomePage /></Layout>} />
       </Routes>
     </Router>
   );

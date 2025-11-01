@@ -8,6 +8,18 @@ export default function PaymentReturn() {
   const [paymentResult, setPaymentResult] = useState(null);
 
   useEffect(() => {
+    //Redirect payment
+    // Check if we're on the backend JSON response page
+    if (window.location.href.includes('czf23bx8-8080.asse.devtunnels.ms')) {
+      // Extract VNPay params from current URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const frontendUrl = 'http://localhost:5173/payment/return?' + urlParams.toString();
+      
+      // Redirect to frontend
+      window.location.href = frontendUrl;
+      return;
+    }
+
     const result = parseVNPayReturn(searchParams);
     
     // Get saved transaction info from sessionStorage

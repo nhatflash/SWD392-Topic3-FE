@@ -13,7 +13,7 @@ const PublicStationDetail = () => {
   const [batteryModels, setBatteryModels] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('info'); // 'info', 'batteries', 'models'
+  const [activeTab, setActiveTab] = useState('info'); // 'info', 'models'
 
   const loadStationDetail = async () => {
     try {
@@ -121,16 +121,6 @@ const PublicStationDetail = () => {
             }`}
           >
             Thông tin trạm
-          </button>
-          <button
-            onClick={() => setActiveTab('batteries')}
-            className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-              activeTab === 'batteries'
-                ? 'border-[#0028b8] text-[#0028b8]'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Pin tại trạm ({batteries.length})
           </button>
           <button
             onClick={() => setActiveTab('models')}
@@ -294,83 +284,6 @@ const PublicStationDetail = () => {
                   </div>
                 </div>
               ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Tab Content: Batteries at Station */}
-      {activeTab === 'batteries' && (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-xl font-bold mb-4">
-            Pin tại trạm ({batteries.length})
-          </h3>
-
-          {batteries.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
-              </svg>
-              <p>Trạm này chưa có pin nào</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {batteries.map((battery) => {
-                const key = battery.batteryId || battery.id;
-                return (
-                  <div key={key} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-lg">{battery.serialNumber}</h4>
-                        <p className="text-sm text-gray-600">{battery.type}</p>
-                      </div>
-                      <span className={`px-2 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${
-                        battery.status === 'FULL' ? 'bg-green-100 text-green-800' :
-                        battery.status === 'IN_USE' ? 'bg-blue-100 text-blue-800' :
-                        battery.status === 'CHARGING' ? 'bg-yellow-100 text-yellow-800' :
-                        battery.status === 'MAINTENANCE' ? 'bg-orange-100 text-orange-800' :
-                        battery.status === 'FAULTY' ? 'bg-red-100 text-red-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {battery.status}
-                      </span>
-                    </div>
-
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Dung lượng:</span>
-                        <span className="font-semibold">{battery.capacityKwh} kWh</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Mức sạc:</span>
-                        <span className="font-semibold">{battery.currentChargePercentage || 0}%</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Chu kỳ sạc:</span>
-                        <span>{battery.totalChargeCycles || 0}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Lượt đổi:</span>
-                        <span>{battery.totalSwapCount || 0}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Giá thuê:</span>
-                        <span className="font-semibold text-green-600">
-                          {new Intl.NumberFormat('vi-VN', { 
-                            style: 'currency', 
-                            currency: 'VND' 
-                          }).format(battery.rentalPrice || 0)}
-                        </span>
-                      </div>
-                      {battery.notes && (
-                        <div className="pt-2 border-t">
-                          <p className="text-xs text-gray-500 italic">{battery.notes}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
             </div>
           )}
         </div>

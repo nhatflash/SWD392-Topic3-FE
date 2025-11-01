@@ -244,6 +244,162 @@ export async function getStaffBatteryInventory() {
   }
 }
 
+/**
+ * Get battery inventory for current staff's station with pagination
+ * @param {number} page - Page number (1-based)
+ * @returns {Promise<Object>} {batteries: Array, hasMore: boolean, stationInfo: Object}
+ */
+export async function getStaffBatteryInventoryPaginated(page = 1) {
+  try {
+    // Get staff's station info
+    const stationInfo = await getCurrentStaffStation();
+    
+    if (!stationInfo?.stationId) {
+      throw new Error('Staff chưa được phân công vào trạm nào');
+    }
+
+    // Get batteries for all statuses at this station for specific page
+    const statuses = ['FULL', 'IN_USE', 'CHARGING', 'MAINTENANCE', 'FAULTY', 'RETIRED'];
+    const allBatteries = [];
+    
+    // For pagination, we need to get batteries from each status and combine
+    // Backend uses LIST_SIZE = 10, so we'll get page data for each status
+    const promises = statuses.map(async (status) => {
+      try {
+        const res = await API.get(`/api/battery/station/${stationInfo.stationId}/status`, { 
+          params: { status, page } 
+        });
+        const batteries = res?.data?.data || [];
+        return { status, batteries };
+      } catch (error) {
+        console.warn(`Failed to get batteries for status ${status}:`, error?.response?.status);
+        return { status, batteries: [] };
+      }
+    });
+    
+    const results = await Promise.all(promises);
+    let totalBatteriesThisPage = 0;
+    
+    for (const { batteries } of results) {
+      if (Array.isArray(batteries)) {
+        allBatteries.push(...batteries);
+        totalBatteriesThisPage += batteries.length;
+      }
+    }
+    
+    // Check if there are more pages by seeing if any status returned full page (10 items)
+    const hasMore = results.some(({ batteries }) => batteries.length === 10);
+    
+    console.log(`Found ${allBatteries.length} batteries for station ${stationInfo.stationId} page ${page}`);
+    
+    return {
+      batteries: allBatteries,
+      hasMore,
+      stationInfo
+    };
+  } catch (error) {
+    console.error('Failed to get staff battery inventory:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get total count of batteries for current staff's station
+ * @returns {Promise<number>} Total number of batteries in staff's station
+ */
+export async function getStaffBatteryTotalCount() {
+  try {
+    // Get staff's station info
+    const stationInfo = await getCurrentStaffStation();
+    
+    if (!stationInfo?.stationId) {
+      throw new Error('Staff chưa được phân công vào trạm nào');
+    }
+
+    // Get total count by loading all pages and counting
+    let totalCount = 0;
+    let currentPage = 1;
+    let hasMore = true;
+    
+    const statuses = ['FULL', 'IN_USE', 'CHARGING', 'MAINTENANCE', 'FAULTY', 'RETIRED'];
+    
+    while (hasMore) {
+      const promises = statuses.map(async (status) => {
+        try {
+          const res = await API.get(`/api/battery/station/${stationInfo.stationId}/status`, { 
+            params: { status, page: currentPage } 
+          });
+          return res?.data?.data || [];
+        } catch (error) {
+          return [];
+        }
+      });
+      
+      const results = await Promise.all(promises);
+      let pageTotal = 0;
+      
+      for (const batteries of results) {
+        if (Array.isArray(batteries)) {
+          pageTotal += batteries.length;
+        }
+      }
+      
+      if (pageTotal === 0) {
+        hasMore = false;
+      } else {
+        totalCount += pageTotal;
+        
+        // If any status returned less than 10 items, we've reached the end
+        const hasFullPages = results.some(batteries => batteries.length === 10);
+        if (!hasFullPages) {
+          hasMore = false;
+        } else {
+          currentPage++;
+        }
+      }
+    }
+    
+    return totalCount;
+  } catch (error) {
+    console.error('Failed to get staff battery total count:', error);
+    return 0;
+  }
+}
+
+/**
+ * Get total count of battery models across all pages
+ * @returns {Promise<number>} Total number of battery models
+ */
+export async function getBatteryModelsTotalCount() {
+  try {
+    let totalCount = 0;
+    let currentPage = 1;
+    let hasMore = true;
+    
+    while (hasMore) {
+      const models = await getAllBatteryModels(currentPage);
+      
+      if (models.length === 0) {
+        hasMore = false;
+      } else {
+        totalCount += models.length;
+        
+        // If we got less than 10 models (LIST_SIZE), we've reached the end
+        if (models.length < 10) {
+          hasMore = false;
+        } else {
+          currentPage++;
+        }
+      }
+    }
+    
+    return totalCount;
+  } catch (error) {
+    console.error('Failed to get battery models total count:', error);
+    return 0;
+  }
+}
+
 // ============= Helper for fetching batteries by station =============
 // Note: BE doesn't have direct endpoint for this, but we can filter client-side
 // or use inventory endpoint if we have staff access to that station

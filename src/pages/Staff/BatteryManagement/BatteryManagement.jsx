@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { useAuth } from '../../../context/AuthContext';
-import { getAllBatteryModels, getStaffBatteryInventory, getCurrentStaffStation } from '../../../services/battery';
+import { getAllBatteryModels, getStaffBatteryInventoryPaginated, getCurrentStaffStation, getStaffBatteryTotalCount, getBatteryModelsTotalCount } from '../../../services/battery';
 import { getOperationalStations } from '../../../services/station';
 import Header from '../../../components/Header';
 
@@ -17,48 +17,92 @@ const BatteryManagement = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('models'); // 'models', 'batteries'
+  
+  // Pagination states
+  const [batteryCurrentPage, setBatteryCurrentPage] = useState(1);
+  const [batteryHasMore, setBatteryHasMore] = useState(true);
+  const [modelCurrentPage, setModelCurrentPage] = useState(1);
+  const [modelHasMore, setModelHasMore] = useState(true);
+  
+  // Total counts for tab display
+  const [totalBatteryCount, setTotalBatteryCount] = useState(0);
+  const [totalModelCount, setTotalModelCount] = useState(0);
 
   // Load data when component mounts
   const loadData = async () => {
+    setBatteryCurrentPage(1);
+    setModelCurrentPage(1);
+    await Promise.all([
+      loadBatteries(1),
+      loadBatteryModels(1),
+      loadTotalCounts() // Load total counts for tab display
+    ]);
+  };
+
+  // Load total counts for tab display
+  const loadTotalCounts = async () => {
+    try {
+      const [batteryTotal, modelTotal] = await Promise.all([
+        getStaffBatteryTotalCount().catch(() => 0),
+        getBatteryModelsTotalCount().catch(() => 0)
+      ]);
+      
+      setTotalBatteryCount(batteryTotal);
+      setTotalModelCount(modelTotal);
+      
+      console.log(`Total counts: ${batteryTotal} batteries, ${modelTotal} models`);
+    } catch (error) {
+      console.error('Failed to load total counts:', error);
+      // Set to current page counts as fallback
+      setTotalBatteryCount(batteries.length);
+      setTotalModelCount(batteryModels.length);
+    }
+  };
+
+  // Load batteries for specific page
+  const loadBatteries = async (page = 1) => {
     try {
       setLoading(true);
       setError('');
 
-      // Load models and batteries in parallel
-      const [modelsData, batteriesData] = await Promise.all([
-        getAllBatteryModels().catch(() => []),
-        getStaffBatteryInventory().catch((err) => {
-          console.error('Failed to get staff battery inventory:', err);
-          throw err; // Re-throw to handle in outer catch
-        })
-      ]);
-
-      setBatteryModels(modelsData);
-      setBatteries(batteriesData);
+      const result = await getStaffBatteryInventoryPaginated(page);
+      setBatteries(result.batteries);
+      setBatteryHasMore(result.hasMore);
+      setBatteryCurrentPage(page);
       
-      // Try to get station name for display
-      try {
-        const stationInfo = await getCurrentStaffStation();
-        if (stationInfo?.stationName) {
-          setStationName(stationInfo.stationName);
-        }
-      } catch (stationError) {
-        console.warn('Could not get station info:', stationError);
-        setStationName('Trạm của bạn');
+      // Set station name from result
+      if (result.stationInfo?.stationName) {
+        setStationName(result.stationInfo.stationName);
       }
       
-      console.log(`Loaded ${batteriesData.length} batteries for staff's station`);
+      console.log(`Loaded ${result.batteries.length} batteries for page ${page}`);
     } catch (e) {
-      console.error('Failed to load battery management data:', e);
-      const errorMessage = e?.response?.data?.message || e?.message || 'Không thể tải dữ liệu';
-      
-      if (errorMessage.includes('chưa được phân công') || errorMessage.includes('not found') || errorMessage.includes('Station staff')) {
-        setError('Bạn chưa được phân công vào trạm nào. Vui lòng liên hệ admin để được phân công trạm.');
-      } else {
-        setError(`Không thể tải dữ liệu: ${errorMessage}`);
-      }
-      
+      console.error('Failed to load batteries:', e);
+      const errorMessage = e?.response?.data?.message || e?.message || 'Không thể tải pin';
+      setError(`Không thể tải dữ liệu pin: ${errorMessage}`);
       setBatteries([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load battery models for specific page
+  const loadBatteryModels = async (page = 1) => {
+    try {
+      setLoading(true);
+      setError('');
+
+      const modelsData = await getAllBatteryModels(page);
+      setBatteryModels(modelsData);
+      setModelHasMore(modelsData.length === 10); // Backend LIST_SIZE = 10
+      setModelCurrentPage(page);
+      
+      console.log(`Loaded ${modelsData.length} models for page ${page}`);
+    } catch (e) {
+      console.error('Failed to load battery models:', e);
+      const errorMessage = e?.response?.data?.message || e?.message || 'Không thể tải models';
+      setError(`Không thể tải danh sách models: ${errorMessage}`);
+      setBatteryModels([]);
     } finally {
       setLoading(false);
     }
@@ -215,7 +259,7 @@ const BatteryManagement = () => {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              Model pin ({batteryModels.length})
+              Model pin ({totalModelCount || batteryModels.length})
             </button>
             <button
               onClick={() => setActiveTab('batteries')}
@@ -225,7 +269,7 @@ const BatteryManagement = () => {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              Pin trong trạm ({batteries.length})
+              Pin trong trạm ({totalBatteryCount || batteries.length})
             </button>
           </nav>
         </div>
@@ -234,7 +278,7 @@ const BatteryManagement = () => {
         {activeTab === 'models' && (
           <div className="bg-white rounded-lg shadow-md p-6">
             <h3 className="text-xl font-bold mb-4">
-              Danh sách Model pin ({batteryModels.length})
+              Danh sách Model pin ({totalModelCount || batteryModels.length})
             </h3>
             
             {batteryModels.length === 0 ? (
@@ -284,6 +328,67 @@ const BatteryManagement = () => {
                 })}
               </div>
             )}
+            
+            {/* Battery Models Pagination */}
+            {!loading && batteryModels.length > 0 && (
+              <div className="flex items-center justify-between mt-6 px-4">
+                <div className="text-sm text-gray-500">
+                  Trang {modelCurrentPage} - Hiển thị {batteryModels.length} models
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => loadBatteryModels(modelCurrentPage - 1)}
+                    disabled={modelCurrentPage <= 1}
+                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    ← Trước
+                  </button>
+                  
+                  {/* Show page numbers */}
+                  {modelCurrentPage > 2 && (
+                    <>
+                      <button
+                        onClick={() => loadBatteryModels(1)}
+                        className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50"
+                      >
+                        1
+                      </button>
+                      {modelCurrentPage > 3 && <span className="px-2 text-gray-400">...</span>}
+                    </>
+                  )}
+                  
+                  {modelCurrentPage > 1 && (
+                    <button
+                      onClick={() => loadBatteryModels(modelCurrentPage - 1)}
+                      className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50"
+                    >
+                      {modelCurrentPage - 1}
+                    </button>
+                  )}
+                  
+                  <span className="px-3 py-1 text-sm bg-[#0028b8] text-white rounded font-medium">
+                    {modelCurrentPage}
+                  </span>
+                  
+                  {modelHasMore && (
+                    <button
+                      onClick={() => loadBatteryModels(modelCurrentPage + 1)}
+                      className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50"
+                    >
+                      {modelCurrentPage + 1}
+                    </button>
+                  )}
+                  
+                  <button
+                    onClick={() => loadBatteryModels(modelCurrentPage + 1)}
+                    disabled={!modelHasMore}
+                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Tiếp →
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -291,7 +396,7 @@ const BatteryManagement = () => {
         {activeTab === 'batteries' && (
           <div className="bg-white rounded-lg shadow-md p-6">
             <h3 className="text-xl font-bold mb-4">
-              Pin trong trạm ({batteries.length})
+              Pin trong trạm ({totalBatteryCount || batteries.length})
             </h3>
 
             {batteries.length === 0 ? (
@@ -364,6 +469,67 @@ const BatteryManagement = () => {
                     </div>
                   );
                 })}
+              </div>
+            )}
+            
+            {/* Battery Pagination */}
+            {!loading && batteries.length > 0 && (
+              <div className="flex items-center justify-between mt-6 px-4">
+                <div className="text-sm text-gray-500">
+                  Trang {batteryCurrentPage} - Hiển thị {batteries.length} pin
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => loadBatteries(batteryCurrentPage - 1)}
+                    disabled={batteryCurrentPage <= 1}
+                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    ← Trước
+                  </button>
+                  
+                  {/* Show page numbers */}
+                  {batteryCurrentPage > 2 && (
+                    <>
+                      <button
+                        onClick={() => loadBatteries(1)}
+                        className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50"
+                      >
+                        1
+                      </button>
+                      {batteryCurrentPage > 3 && <span className="px-2 text-gray-400">...</span>}
+                    </>
+                  )}
+                  
+                  {batteryCurrentPage > 1 && (
+                    <button
+                      onClick={() => loadBatteries(batteryCurrentPage - 1)}
+                      className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50"
+                    >
+                      {batteryCurrentPage - 1}
+                    </button>
+                  )}
+                  
+                  <span className="px-3 py-1 text-sm bg-[#0028b8] text-white rounded font-medium">
+                    {batteryCurrentPage}
+                  </span>
+                  
+                  {batteryHasMore && (
+                    <button
+                      onClick={() => loadBatteries(batteryCurrentPage + 1)}
+                      className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50"
+                    >
+                      {batteryCurrentPage + 1}
+                    </button>
+                  )}
+                  
+                  <button
+                    onClick={() => loadBatteries(batteryCurrentPage + 1)}
+                    disabled={!batteryHasMore}
+                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Tiếp →
+                  </button>
+                </div>
               </div>
             )}
           </div>

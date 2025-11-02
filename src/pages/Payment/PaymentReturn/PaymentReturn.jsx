@@ -8,35 +8,94 @@ export default function PaymentReturn() {
   const [paymentResult, setPaymentResult] = useState(null);
 
   useEffect(() => {
-    //Redirect payment
-    // Check if we're on the backend JSON response page
-    if (window.location.href.includes('czf23bx8-8080.asse.devtunnels.ms')) {
-      // Extract VNPay params from current URL
-      const urlParams = new URLSearchParams(window.location.search);
-      const frontendUrl = 'http://localhost:5173/payment/return?' + urlParams.toString();
-      
-      // Redirect to frontend
-      window.location.href = frontendUrl;
-      return;
-    }
+    const handlePaymentReturn = async () => {
+      try {
+        const currentUrl = window.location.href;
+        console.log('🔍 Current URL:', currentUrl);
+        
+        // Check if we're on the backend domain with VNPay params
+        if (currentUrl.includes('czf23bx8-8080.asse.devtunnels.ms') || 
+            currentUrl.includes('localhost:8080')) {
+          
+          console.log('🔄 Detected backend domain, checking for redirect...');
+          
+          // Extract VNPay params from current URL
+          const urlParams = new URLSearchParams(window.location.search);
+          
+          // Check if we have VNPay params
+          if (urlParams.has('vnp_ResponseCode') || urlParams.has('vnp_TxnRef')) {
+            const frontendBase = currentUrl.includes('czf23bx8-8080.asse.devtunnels.ms') 
+              ? 'https://czf23bx8-8080.asse.devtunnels.ms:5173'
+              : 'http://localhost:5173';
+              
+            const frontendUrl = frontendBase + '/payment/return?' + urlParams.toString();
+            console.log('🚀 Redirecting to frontend with params:', frontendUrl);
+            window.location.href = frontendUrl;
+            return;
+          }
+          
+          // Check for JSON response with redirect text (wait a bit for content to load)
+          setTimeout(() => {
+            const pageText = document.body.textContent || '';
+            console.log('📄 Page content:', pageText);
+            
+            if (pageText.includes('redirect:')) {
+              const redirectMatch = pageText.match(/redirect:([^"\s]+)/);
+              if (redirectMatch) {
+                let redirectUrl = redirectMatch[1];
+                
+                // Fix redirect URL if it's pointing to localhost but we're on public domain
+                if (redirectUrl.includes('localhost:5173') && currentUrl.includes('czf23bx8-8080.asse.devtunnels.ms')) {
+                  redirectUrl = redirectUrl.replace('http://localhost:5173/mainpage/HomePage', 'https://czf23bx8-8080.asse.devtunnels.ms:5173');
+                }
+                
+                console.log('🚀 Found redirect URL in content:', redirectUrl);
+                window.location.href = redirectUrl;
+                return;
+              }
+            }
+            
+            // If no redirect found, show error
+            console.error('❌ No redirect URL found in backend response');
+            setPaymentResult({
+              success: false,
+              message: 'Lỗi xử lý kết quả thanh toán. Vui lòng liên hệ hỗ trợ.'
+            });
+          }, 500);
+          
+          return;
+        }
 
-    const result = parseVNPayReturn(searchParams);
-    
-    // Get saved transaction info from sessionStorage
-    const transactionId = sessionStorage.getItem('pendingPaymentTransaction');
-    const orderCode = sessionStorage.getItem('pendingPaymentOrderCode');
-    
-    if (transactionId) result.savedTransactionId = transactionId;
-    if (orderCode) result.savedOrderCode = orderCode;
-    
-    console.log('📦 Payment Return Result:', result);
-    setPaymentResult(result);
-    
-    // Clear sessionStorage after getting values
-    if (result.success) {
-      sessionStorage.removeItem('pendingPaymentTransaction');
-      sessionStorage.removeItem('pendingPaymentOrderCode');
-    }
+        // Normal frontend processing when on localhost:5173
+        console.log('✅ Processing payment return on frontend domain');
+        const result = parseVNPayReturn(searchParams);
+        
+        // Get saved transaction info from sessionStorage
+        const transactionId = sessionStorage.getItem('pendingPaymentTransaction');
+        const orderCode = sessionStorage.getItem('pendingPaymentOrderCode');
+        
+        if (transactionId) result.savedTransactionId = transactionId;
+        if (orderCode) result.savedOrderCode = orderCode;
+        
+        console.log('📦 Payment Return Result:', result);
+        setPaymentResult(result);
+        
+        // Clear sessionStorage after getting values
+        if (result.success) {
+          sessionStorage.removeItem('pendingPaymentTransaction');
+          sessionStorage.removeItem('pendingPaymentOrderCode');
+        }
+        
+      } catch (error) {
+        console.error('❌ Error processing payment return:', error);
+        setPaymentResult({
+          success: false,
+          message: 'Có lỗi xảy ra khi xử lý kết quả thanh toán. Vui lòng thử lại.'
+        });
+      }
+    };
+
+    handlePaymentReturn();
   }, [searchParams]);
 
   const handleGoToOrders = () => {

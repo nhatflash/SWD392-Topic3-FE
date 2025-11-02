@@ -12,10 +12,12 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import API, { logout as apiLogout, clearTokens } from '../../services/auth';
 import { getUsers, getUsersByRole } from '../../services/admin';
+import { getDailyDashboard, getRevenueChartData } from '../../services/dashboard';
 import { resolveAssetUrl } from '../../services/user';
 import { getAllStations, createStation, updateStation, changeStationStatus } from '../../services/station';
 import { getAllBatteries, getAllBatteriesComplete, getAllBatteryModels, getAllBatteryModelsComplete, defineBatteryModel, updateBatteryModel, getMonitoringStats, getBatteryStateById } from '../../services/battery';
 import BatteryDetailModal from '../../components/BatteryDetailModal';
+import RevenueChart from '../../components/RevenueChart';
 import { recordSoHDataPoint } from '../../services/sohTracking';
 
 const Admin = () => {
@@ -36,6 +38,14 @@ const Admin = () => {
   const [monitoringStats, setMonitoringStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState('');
+  
+  // Dashboard stats state
+  const [dashboardStats, setDashboardStats] = useState(null);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
+  const [chartData, setChartData] = useState(null);
+  const [chartLoading, setChartLoading] = useState(false);
+  const [chartError, setChartError] = useState(null);
+  const [chartPeriod, setChartPeriod] = useState('MONTH'); // 'DAY', 'MONTH', 'YEAR'
   
   // Battery pagination states
   const [batteryCurrentPage, setBatteryCurrentPage] = useState(1);
@@ -171,6 +181,45 @@ const Admin = () => {
     }
   };
 
+  const loadDashboardStats = async () => {
+    try {
+      setDashboardLoading(true);
+      const stats = await getDailyDashboard();
+      console.log('Dashboard stats loaded:', stats);
+      setDashboardStats(stats);
+    } catch (e) {
+      console.error('Failed to load dashboard stats:', e);
+      // Set fallback data on error
+      setDashboardStats({
+        totalTransactions: 0,
+        completedTransactions: 0,
+        totalRevenue: 0
+      });
+    } finally {
+      setDashboardLoading(false);
+    }
+  };
+
+  const loadRevenueChart = async (period = chartPeriod) => {
+    try {
+      setChartLoading(true);
+      setChartError(null);
+      const data = await getRevenueChartData(period);
+      console.log(`Revenue chart data loaded for ${period}:`, data);
+      setChartData(data);
+    } catch (e) {
+      console.error('Failed to load revenue chart:', e);
+      setChartError(e?.message || 'Không thể tải biểu đồ doanh thu');
+    } finally {
+      setChartLoading(false);
+    }
+  };
+
+  const handlePeriodChange = (newPeriod) => {
+    setChartPeriod(newPeriod);
+    loadRevenueChart(newPeriod);
+  };
+
   // Open battery detail modal with realtime state
   const handleOpenBatteryDetail = async (battery) => {
     try {
@@ -278,6 +327,8 @@ const Admin = () => {
   useEffect(() => {
     loadUserCount();
     loadStations();
+    loadDashboardStats();
+    loadRevenueChart();
   }, []);
 
   // Sync activeView with query param `view` when landing; default to overview on bare route
@@ -301,6 +352,8 @@ const Admin = () => {
     if (activeView === 'overview') {
       loadUserCount();
       loadStations();
+      loadDashboardStats();
+      loadRevenueChart();
     }
   }, [activeView]);
 
@@ -336,7 +389,7 @@ const Admin = () => {
           <ul className="space-y-3">
             <li>
               <button
-                onClick={() => { setActiveView('overview'); loadUserCount(); try{sessionStorage.setItem(STORAGE_KEY,'overview');}catch{} navigate('/dashboard/admin?view=overview', { replace: true }); }}
+                onClick={() => { setActiveView('overview'); loadUserCount(); loadDashboardStats(); loadRevenueChart(); try{sessionStorage.setItem(STORAGE_KEY,'overview');}catch{} navigate('/dashboard/admin?view=overview', { replace: true }); }}
                 className="flex items-center gap-3 p-2 rounded hover:bg-[#335cff] w-full text-left"
               >
                 <LayoutDashboard /> {isSidebarOpen && "Dashboard"}
@@ -443,7 +496,7 @@ const Admin = () => {
 
         {activeView === 'overview' && (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
               <div className="bg-white p-6 rounded-xl shadow">
                 <h3 className="text-lg font-semibold">Tổng số User</h3>
                 <p className="text-3xl font-bold text-[#0028b8]">{userCount}</p>
@@ -454,13 +507,105 @@ const Admin = () => {
               </div>
               <div className="bg-white p-6 rounded-xl shadow">
                 <h3 className="text-lg font-semibold">Tổng giao dịch</h3>
-                <p className="text-3xl font-bold text-[#0028b8]">412</p>
+                {dashboardLoading ? (
+                  <div className="flex items-center justify-center py-2">
+                    <div className="w-6 h-6 border-2 border-gray-200 border-t-[#0028b8] rounded-full animate-spin" />
+                  </div>
+                ) : (
+                  <p className="text-3xl font-bold text-[#0028b8]">
+                    {dashboardStats?.totalTransactions || 0}
+                  </p>
+                )}
+              </div>
+              <div className="bg-white p-6 rounded-xl shadow">
+                <h3 className="text-lg font-semibold">Số giao dịch hoàn thành</h3>
+                {dashboardLoading ? (
+                  <div className="flex items-center justify-center py-2">
+                    <div className="w-6 h-6 border-2 border-gray-200 border-t-[#0028b8] rounded-full animate-spin" />
+                  </div>
+                ) : (
+                  <p className="text-3xl font-bold text-green-600">
+                    {dashboardStats?.completedTransactions || 0}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Additional Revenue Info */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div className="bg-white p-6 rounded-xl shadow">
+                <h3 className="text-lg font-semibold mb-2">Doanh thu hôm nay</h3>
+                {dashboardLoading ? (
+                  <div className="flex items-center justify-center py-2">
+                    <div className="w-6 h-6 border-2 border-gray-200 border-t-[#0028b8] rounded-full animate-spin" />
+                  </div>
+                ) : (
+                  <p className="text-2xl font-bold text-green-600">
+                    {new Intl.NumberFormat('vi-VN', { 
+                      style: 'currency', 
+                      currency: 'VND' 
+                    }).format(dashboardStats?.totalRevenue || 0)}
+                  </p>
+                )}
+              </div>
+              <div className="bg-white p-6 rounded-xl shadow">
+                <h3 className="text-lg font-semibold mb-2">Tỷ lệ hoàn thành</h3>
+                {dashboardLoading ? (
+                  <div className="flex items-center justify-center py-2">
+                    <div className="w-6 h-6 border-2 border-gray-200 border-t-[#0028b8] rounded-full animate-spin" />
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <p className="text-2xl font-bold text-blue-600">
+                      {dashboardStats?.totalTransactions > 0 
+                        ? Math.round((dashboardStats.completedTransactions / dashboardStats.totalTransactions) * 100)
+                        : 0}%
+                    </p>
+                    <div className="w-20 bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                        style={{ 
+                          width: `${dashboardStats?.totalTransactions > 0 
+                            ? (dashboardStats.completedTransactions / dashboardStats.totalTransactions) * 100
+                            : 0}%` 
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="bg-white p-6 rounded-xl shadow">
-              <h2 className="text-xl font-semibold mb-4">Danh sách trạm gần đây</h2>
-              <div className="text-gray-500">(Demo static)</div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold">Thống kê tổng quan</h2>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => loadRevenueChart(chartPeriod)}
+                    className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                  >
+                    📊 Tải biểu đồ
+                  </button>
+                  <button
+                    onClick={loadDashboardStats}
+                    className="px-3 py-1 text-sm bg-[#0028b8] text-white rounded hover:bg-[#001a8b] transition-colors"
+                  >
+                    🔄 Làm mới
+                  </button>
+                </div>
+              </div>
+              <div className="text-gray-500 text-sm mb-6">
+                Dữ liệu được cập nhật theo thời gian thực từ hệ thống thanh toán
+              </div>
+              
+              {/* Revenue Chart */}
+              <RevenueChart 
+                chartData={chartData} 
+                loading={chartLoading} 
+                error={chartError}
+                selectedPeriod={chartPeriod}
+                onPeriodChange={handlePeriodChange}
+              />
             </div>
           </>
         )}

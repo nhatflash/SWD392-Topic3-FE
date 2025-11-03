@@ -7,100 +7,73 @@ export default function PaymentReturn() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const handlePaymentReturn = async () => {
+    const handlePaymentReturn = () => {
       try {
         const currentUrl = window.location.href;
         console.log('🔍 Current URL:', currentUrl);
-        
-        // Check if we're on the backend domain with VNPay params
-        if (currentUrl.includes('czf23bx8-8080.asse.devtunnels.ms') || 
-            currentUrl.includes('localhost:8080')) {
-          
-          console.log('🔄 Detected backend domain, checking for redirect...');
-          
-          // Extract VNPay params from current URL
-          const urlParams = new URLSearchParams(window.location.search);
-          
-          // Check if we have VNPay params
-          if (urlParams.has('vnp_ResponseCode') || urlParams.has('vnp_TxnRef')) {
-            const frontendBase = currentUrl.includes('czf23bx8-8080.asse.devtunnels.ms') 
-              ? 'https://swd-392-topic3-fe.vercel.app'
-              : 'http://localhost:5173';
-              
-            const frontendUrl = frontendBase + '/payment/return?' + urlParams.toString();
-            console.log('🚀 Redirecting to frontend with params:', frontendUrl);
-            
-            // Preserve authentication state during redirect
-            const accessToken = localStorage.getItem('accessToken');
-            const refreshToken = localStorage.getItem('refreshToken');
-            const user = localStorage.getItem('user');
-            
-            // Store temporarily in sessionStorage to survive redirect
-            if (accessToken) sessionStorage.setItem('temp_accessToken', accessToken);
-            if (refreshToken) sessionStorage.setItem('temp_refreshToken', refreshToken);
-            if (user) sessionStorage.setItem('temp_user', user);
-            
-            window.location.href = frontendUrl;
-            return;
-          }
-          
-          // Check for JSON response with redirect text (wait a bit for content to load)
-          setTimeout(() => {
-            const pageText = document.body.textContent || '';
-            console.log('📄 Page content:', pageText);
-            
-            if (pageText.includes('redirect:')) {
-              const redirectMatch = pageText.match(/redirect:([^"\s]+)/);
-              if (redirectMatch) {
-                let redirectUrl = redirectMatch[1];
-                
-                // Fix redirect URL if it's pointing to localhost but we're on public domain
-                if (redirectUrl.includes('localhost:5173') && currentUrl.includes('czf23bx8-8080.asse.devtunnels.ms')) {
-                  redirectUrl = redirectUrl.replace('http://localhost:5173/mainpage/HomePage', 'https://swd-392-topic3-fe.vercel.app');
-                }
-                
-                console.log('🚀 Found redirect URL in content:', redirectUrl);
-                window.location.href = redirectUrl;
-                return;
-              }
-            }
-            
-            // If no redirect found, redirect to failure page
-            console.error('❌ No redirect URL found in backend response');
-            navigate('/payment/failure', { 
-              state: { 
-                message: 'Lỗi xử lý kết quả thanh toán. Vui lòng liên hệ hỗ trợ.' 
-              } 
-            });
-          }, 500);
-          
-          return;
-        }
-
-        // Normal frontend processing when on correct domain
-        console.log('✅ Processing payment return on frontend domain');
-        
-        // Restore authentication state if available
-        const tempAccessToken = sessionStorage.getItem('temp_accessToken');
-        const tempRefreshToken = sessionStorage.getItem('temp_refreshToken');
-        const tempUser = sessionStorage.getItem('temp_user');
-        
-        if (tempAccessToken && !localStorage.getItem('accessToken')) {
-          console.log('🔄 Restoring authentication state from session storage');
-          localStorage.setItem('accessToken', tempAccessToken);
-          localStorage.setItem('refreshToken', tempRefreshToken || '');
-          localStorage.setItem('user', tempUser || '');
-          
-          // Clean up temp storage
-          sessionStorage.removeItem('temp_accessToken');
-          sessionStorage.removeItem('temp_refreshToken');
-          sessionStorage.removeItem('temp_user');
-        }
-        
-        // Debug URL params
-        console.log('🔍 Search Params from URL:', window.location.search);
+        console.log('🔍 Search Params:', window.location.search);
         console.log('🔍 All URL params:', Object.fromEntries(searchParams.entries()));
         
+        // Check if we're coming from backend domain (no params scenario)
+        const isBackendRedirect = currentUrl.includes('swd-392-topic3-fe.vercel.app/payment/return') && 
+                                 !searchParams.toString();
+        
+        if (isBackendRedirect) {
+          console.log('🔄 Detected backend redirect without params');
+          
+          // Get saved transaction info from sessionStorage to determine result
+          const transactionId = sessionStorage.getItem('pendingPaymentTransaction');
+          const orderCode = sessionStorage.getItem('pendingPaymentOrderCode');
+          
+          if (transactionId) {
+            // Since backend already processed payment in /vnpay-ipn
+            // We'll assume success and let user check in orders page
+            console.log('✅ Backend processed payment, redirecting to success');
+            
+            // Create a mock successful result
+            const mockResult = {
+              success: true,
+              message: 'Thanh toán đã được xử lý thành công',
+              transactionId: transactionId,
+              savedTransactionId: transactionId,
+              savedOrderCode: orderCode,
+              backendProcessed: true
+            };
+            
+            // Navigate to success page with mock data
+            navigate('/payment/success', { 
+              state: mockResult,
+              replace: true 
+            });
+          } else {
+            console.warn('⚠️ No transaction info found');
+            navigate('/payment/failure', { 
+              state: { 
+                message: 'Không tìm thấy thông tin giao dịch. Vui lòng kiểm tra đơn hàng của bạn.',
+                noTransactionInfo: true
+              } 
+            });
+          }
+          return;
+        }
+        
+        // Check if we have VNPay parameters (direct VNPay callback)
+        const hasVnpayParams = searchParams.has('vnp_ResponseCode') || 
+                              searchParams.has('vnp_TxnRef') ||
+                              searchParams.toString().length > 0;
+        
+        if (!hasVnpayParams) {
+          console.warn('⚠️ No VNPay parameters found');
+          navigate('/payment/failure', { 
+            state: { 
+              message: 'Không tìm thấy thông tin thanh toán. Vui lòng thử lại.',
+              noParams: true
+            } 
+          });
+          return;
+        }
+        
+        // Parse VNPay return parameters (if available)
         const result = parseVNPayReturn(searchParams);
         
         // Get saved transaction info from sessionStorage
@@ -114,11 +87,11 @@ export default function PaymentReturn() {
         
         // Navigate to appropriate page based on payment result
         if (result.success) {
-          // Redirect to success page with query params
+          console.log('✅ Payment successful, redirecting to success page');
           const successUrl = `/payment/success?${searchParams.toString()}`;
           navigate(successUrl, { replace: true });
         } else {
-          // Redirect to failure page with query params
+          console.log('❌ Payment failed, redirecting to failure page');
           const failureUrl = `/payment/failure?${searchParams.toString()}`;
           navigate(failureUrl, { replace: true });
         }
@@ -127,13 +100,19 @@ export default function PaymentReturn() {
         console.error('❌ Error processing payment return:', error);
         navigate('/payment/failure', { 
           state: { 
-            message: 'Có lỗi xảy ra khi xử lý kết quả thanh toán. Vui lòng thử lại.' 
+            message: 'Có lỗi xảy ra khi xử lý kết quả thanh toán. Vui lòng thử lại.',
+            error: error.message
           } 
         });
       }
     };
 
-    handlePaymentReturn();
+    // Add small delay to ensure URL params are fully loaded
+    const timer = setTimeout(() => {
+      handlePaymentReturn();
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, [searchParams, navigate]);
 
   return (

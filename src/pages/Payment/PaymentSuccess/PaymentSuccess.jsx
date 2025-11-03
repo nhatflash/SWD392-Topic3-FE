@@ -1,29 +1,43 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { parseVNPayReturn } from '../../../services/payment';
 
 export default function PaymentSuccess() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [paymentResult, setPaymentResult] = useState(null);
 
   useEffect(() => {
-    // Parse VNPay return parameters
-    const result = parseVNPayReturn(searchParams);
+    // Check if we have data from navigation state (backend processed case)
+    const navigationState = location.state;
     
-    // Get saved transaction info from sessionStorage
-    const transactionId = sessionStorage.getItem('pendingPaymentTransaction');
-    const orderCode = sessionStorage.getItem('pendingPaymentOrderCode');
+    let result;
     
-    if (transactionId) result.savedTransactionId = transactionId;
-    if (orderCode) result.savedOrderCode = orderCode;
+    if (navigationState && navigationState.backendProcessed) {
+      // Case: Backend already processed payment, no VNPay params available
+      result = navigationState;
+      console.log('💚 Payment Success - From backend processing:', result);
+    } else {
+      // Case: Normal VNPay return with parameters
+      result = parseVNPayReturn(searchParams);
+      
+      // Get saved transaction info from sessionStorage
+      const transactionId = sessionStorage.getItem('pendingPaymentTransaction');
+      const orderCode = sessionStorage.getItem('pendingPaymentOrderCode');
+      
+      if (transactionId) result.savedTransactionId = transactionId;
+      if (orderCode) result.savedOrderCode = orderCode;
+      
+      console.log('💚 Payment Success - From VNPay params:', result);
+    }
     
     setPaymentResult(result);
     
     // Clear sessionStorage after successful payment
     sessionStorage.removeItem('pendingPaymentTransaction');
     sessionStorage.removeItem('pendingPaymentOrderCode');
-  }, [searchParams]);
+  }, [searchParams, location.state]);
 
   const handleGoToOrders = () => {
     navigate('/driver/my-orders');
@@ -83,6 +97,24 @@ export default function PaymentSuccess() {
               </span>
             </div>
           )}
+
+          {paymentResult.txnRef && (
+            <div className="flex justify-between mb-4 pb-3 border-b border-green-200">
+              <span className="text-sm text-gray-600 font-medium">Mã tham chiếu VNPay:</span>
+              <span className="font-mono text-xs text-green-800 break-all bg-green-100 px-2 py-1 rounded">
+                {paymentResult.txnRef}
+              </span>
+            </div>
+          )}
+
+          {paymentResult.bankTranNo && (
+            <div className="flex justify-between mb-4 pb-3 border-b border-green-200">
+              <span className="text-sm text-gray-600 font-medium">Mã GD ngân hàng:</span>
+              <span className="font-medium text-green-800">
+                {paymentResult.bankTranNo}
+              </span>
+            </div>
+          )}
           
           {paymentResult.amount && (
             <div className="flex justify-between items-center pt-2">
@@ -108,6 +140,19 @@ export default function PaymentSuccess() {
               <span className="text-sm text-green-800 font-medium uppercase">
                 {paymentResult.bankCode}
               </span>
+            </div>
+          )}
+
+          {paymentResult.backendProcessed && (
+            <div className="mt-4 p-3 bg-blue-100 border border-blue-200 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-sm text-blue-800 font-medium">
+                  Thanh toán đã được xử lý thành công bởi hệ thống
+                </span>
+              </div>
             </div>
           )}
         </div>
@@ -139,7 +184,16 @@ export default function PaymentSuccess() {
             <div className="text-left">
               <h4 className="font-semibold text-blue-800 mb-2">🔋 Bước tiếp theo</h4>
               <p className="text-sm text-blue-700 leading-relaxed">
-                Bạn có thể đến trạm để đổi pin theo lịch đã đặt. Vui lòng mang theo <strong>mã đơn hàng</strong> và <strong>giấy tờ tùy thân</strong> để xác nhận.
+                {paymentResult.backendProcessed ? (
+                  <>
+                    Thanh toán của bạn đã được xử lý thành công. Bạn có thể kiểm tra chi tiết trong phần{' '}
+                    <strong>"Đơn hàng của tôi"</strong> và đến trạm để đổi pin theo lịch đã đặt.
+                  </>
+                ) : (
+                  <>
+                    Bạn có thể đến trạm để đổi pin theo lịch đã đặt. Vui lòng mang theo <strong>mã đơn hàng</strong> và <strong>giấy tờ tùy thân</strong> để xác nhận.
+                  </>
+                )}
               </p>
             </div>
           </div>

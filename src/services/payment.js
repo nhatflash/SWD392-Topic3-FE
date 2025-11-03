@@ -1,6 +1,23 @@
 import API from './auth';
 
 /**
+ * Check payment status by transaction ID
+ * @param {string} transactionId - UUID of the swap transaction
+ * @returns {Promise<Object>} Payment status result
+ */
+export async function checkPaymentStatus(transactionId) {
+  try {
+    // Since we don't have direct API, we'll use the stored result
+    // This is a workaround until backend provides payment status API
+    const res = await API.get(`/api/transactions/${transactionId}`);
+    return res?.data?.data;
+  } catch (error) {
+    console.error('Error checking payment status:', error);
+    throw error;
+  }
+}
+
+/**
  * Payment Processing APIs
  * Handles payment for battery swap transactions
  */
@@ -72,7 +89,7 @@ export function getPaymentMethodText(method) {
 
 /**
  * Parse VNPay return parameters from URL
- * Used on the return page after VNPay redirect
+ * Used on the return page after VNPay redirect from backend
  * @param {URLSearchParams} searchParams - URL search parameters
  * @returns {Object} Parsed payment result
  */
@@ -80,36 +97,76 @@ export function parseVNPayReturn(searchParams) {
   // Debug: log all available params
   console.log('🔍 All available searchParams:', Array.from(searchParams.entries()));
   
-  const responseCode = searchParams.get('vnp_ResponseCode') || searchParams.get('status');
-  const transactionStatus = searchParams.get('vnp_TransactionStatus') || searchParams.get('txnStatus');
-  const transactionId = searchParams.get('vnp_TxnRef') || searchParams.get('ref');
-  const amount = searchParams.get('vnp_Amount') || searchParams.get('amount');
-  const bankCode = searchParams.get('vnp_BankCode') || searchParams.get('bankCode');
-  const payDate = searchParams.get('vnp_PayDate') || searchParams.get('payDate');
+  // Extract VNPay parameters based on VNPay documentation
+  const responseCode = searchParams.get('vnp_ResponseCode');
+  const transactionStatus = searchParams.get('vnp_TransactionStatus'); 
+  const txnRef = searchParams.get('vnp_TxnRef');
+  const amount = searchParams.get('vnp_Amount');
+  const bankCode = searchParams.get('vnp_BankCode');
+  const payDate = searchParams.get('vnp_PayDate');
   const bankTranNo = searchParams.get('vnp_BankTranNo');
   const transactionNo = searchParams.get('vnp_TransactionNo');
+  const orderInfo = searchParams.get('vnp_OrderInfo');
+  const cardType = searchParams.get('vnp_CardType');
+  const tmnCode = searchParams.get('vnp_TmnCode');
+  const secureHash = searchParams.get('vnp_SecureHash');
   
   console.log('🔍 Parsing VNPay return params:', {
     responseCode,
     transactionStatus, 
-    transactionId,
+    txnRef,
     amount,
     bankCode,
-    payDate
+    payDate,
+    bankTranNo,
+    transactionNo
   });
   
-  const isSuccess = responseCode === '00' && transactionStatus === '00';
+  // Parse transaction ID from vnp_TxnRef (backend format: uuid-timestamp)
+  let transactionId = null;
+  if (txnRef) {
+    // Backend VnPayService creates: transaction.getId() + "-" + System.currentTimeMillis()
+    // So format is: uuid-timestamp, extract first 36 chars for UUID
+    if (txnRef.length >= 36) {
+      transactionId = txnRef.substring(0, 36);
+    }
+  }
+  
+  // Parse payment date
+  let formattedPayDate = null;
+  if (payDate && payDate.length === 14) {
+    // Format: yyyyMMddHHmmss -> dd/MM/yyyy HH:mm:ss
+    const year = payDate.substring(0, 4);
+    const month = payDate.substring(4, 6);
+    const day = payDate.substring(6, 8);
+    const hour = payDate.substring(8, 10);
+    const minute = payDate.substring(10, 12);
+    const second = payDate.substring(12, 14);
+    formattedPayDate = `${day}/${month}/${year} ${hour}:${minute}:${second}`;
+  }
+  
+  // Check success condition
+  const isSuccess = responseCode === '00';
+  
+  // Parse amount (VNPay returns in VND cents, so divide by 100)
+  const parsedAmount = amount ? parseInt(amount) / 100 : null;
   
   return {
     success: isSuccess,
     responseCode,
     transactionStatus,
-    transactionId,
-    amount: amount ? parseInt(amount) / 100 : null, // VNPay returns amount in cents
+    transactionId, // Extracted UUID from vnp_TxnRef
+    txnRef, // Full vnp_TxnRef for reference
+    amount: parsedAmount,
     bankCode,
-    payDate,
+    payDate: formattedPayDate,
+    rawPayDate: payDate,
     bankTranNo,
     transactionNo,
+    orderInfo,
+    cardType,
+    tmnCode,
+    secureHash,
     message: isSuccess ? 'Thanh toán thành công' : getVNPayErrorMessage(responseCode)
   };
 }

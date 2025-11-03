@@ -1,15 +1,44 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { parseVNPayReturn } from '../../../services/payment';
 
 export default function PaymentFailure() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [paymentResult, setPaymentResult] = useState(null);
 
   useEffect(() => {
-    // Parse VNPay return parameters
-    const result = parseVNPayReturn(searchParams);
+    // Parse VNPay return parameters or get from navigation state
+    const navigationState = location.state;
+    
+    let result;
+    
+    if (navigationState && navigationState.noParams) {
+      // Case: No parameters from VNPay, came directly
+      result = {
+        success: false,
+        message: navigationState.message || 'Không tìm thấy thông tin thanh toán.',
+        responseCode: null,
+        transactionStatus: null,
+        transactionId: null,
+        amount: null
+      };
+    } else if (navigationState && navigationState.error) {
+      // Case: Error during processing
+      result = {
+        success: false,
+        message: navigationState.message || 'Có lỗi xảy ra khi xử lý thanh toán.',
+        error: navigationState.error,
+        responseCode: null,
+        transactionStatus: null,
+        transactionId: null,
+        amount: null
+      };
+    } else {
+      // Case: Normal VNPay return with parameters
+      result = parseVNPayReturn(searchParams);
+    }
     
     // Get saved transaction info from sessionStorage
     const transactionId = sessionStorage.getItem('pendingPaymentTransaction');
@@ -18,8 +47,10 @@ export default function PaymentFailure() {
     if (transactionId) result.savedTransactionId = transactionId;
     if (orderCode) result.savedOrderCode = orderCode;
     
+    console.log('❌ Payment Failure - Parsed result:', result);
+    
     setPaymentResult(result);
-  }, [searchParams]);
+  }, [searchParams, location.state]);
 
   const handleRetryPayment = () => {
     // Navigate back to booking or payment page to retry
@@ -98,6 +129,24 @@ export default function PaymentFailure() {
               <span className="text-sm text-gray-600 font-medium">Mã giao dịch:</span>
               <span className="font-mono text-xs text-red-800 break-all bg-red-100 px-2 py-1 rounded">
                 {paymentResult.transactionId || paymentResult.savedTransactionId}
+              </span>
+            </div>
+          )}
+
+          {paymentResult.txnRef && (
+            <div className="flex justify-between mb-4 pb-3 border-b border-red-200">
+              <span className="text-sm text-gray-600 font-medium">Mã tham chiếu VNPay:</span>
+              <span className="font-mono text-xs text-red-800 break-all bg-red-100 px-2 py-1 rounded">
+                {paymentResult.txnRef}
+              </span>
+            </div>
+          )}
+
+          {paymentResult.bankTranNo && (
+            <div className="flex justify-between mb-4 pb-3 border-b border-red-200">
+              <span className="text-sm text-gray-600 font-medium">Mã GD ngân hàng:</span>
+              <span className="font-medium text-red-800">
+                {paymentResult.bankTranNo}
               </span>
             </div>
           )}

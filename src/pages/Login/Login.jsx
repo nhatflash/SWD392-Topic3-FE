@@ -152,17 +152,6 @@ const Login = () => {
                     </div>
                 </div>
 
-                {/* Forgot password link */}
-                <div className="mb-6 text-right">
-                    <button
-                        type="button"
-                        className="text-[#0028b8] hover:underline text-sm font-medium"
-                        onClick={() => {}}
-                    >
-                        Quên mật khẩu?
-                    </button>
-                </div>
-
                 
                 <button
                     type="submit"

@@ -88,6 +88,43 @@ export function getPaymentMethodText(method) {
 }
 
 /**
+ * Parse VNPay parameters directly from URL string
+ * Fallback when URLSearchParams doesn't work
+ * @param {string} urlString - Full URL or search string
+ * @returns {Object} Parsed payment result
+ */
+export function parseVNPayFromURL(urlString) {
+  console.log('🔧 Parsing VNPay from URL string:', urlString);
+  
+  const params = {};
+  
+  // Extract all VNPay parameters using regex
+  const vnpParams = [
+    'vnp_ResponseCode', 'vnp_TxnRef', 'vnp_Amount', 'vnp_BankCode',
+    'vnp_PayDate', 'vnp_BankTranNo', 'vnp_TransactionNo', 'vnp_OrderInfo',
+    'vnp_CardType', 'vnp_TmnCode', 'vnp_SecureHash', 'vnp_TransactionStatus'
+  ];
+  
+  vnpParams.forEach(param => {
+    const regex = new RegExp(`${param}=([^&]*)`);
+    const match = urlString.match(regex);
+    if (match) {
+      params[param] = decodeURIComponent(match[1]);
+    }
+  });
+  
+  console.log('🔧 Extracted params:', params);
+  
+  // Convert to URLSearchParams for compatibility with existing parseVNPayReturn
+  const searchParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    searchParams.set(key, value);
+  });
+  
+  return parseVNPayReturn(searchParams);
+}
+
+/**
  * Parse VNPay return parameters from URL
  * Used on the return page after VNPay redirect from backend
  * @param {URLSearchParams} searchParams - URL search parameters
@@ -121,6 +158,12 @@ export function parseVNPayReturn(searchParams) {
     bankTranNo,
     transactionNo
   });
+  
+  // Early return if critical params are missing
+  if (!responseCode && !txnRef && !amount) {
+    console.log('❌ No critical VNPay parameters found');
+    return null;
+  }
   
   // Parse transaction ID from vnp_TxnRef (backend format: uuid-timestamp)
   let transactionId = null;

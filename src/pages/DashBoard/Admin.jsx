@@ -12,7 +12,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import API, { logout as apiLogout, clearTokens } from '../../services/auth';
 import { getUsers, getUsersByRole } from '../../services/admin';
-import { getDailyDashboard, getRevenueChartData } from '../../services/dashboard';
+import { getDailyDashboard, getRevenueChartData, getYearlyDashboard } from '../../services/dashboard';
 import { resolveAssetUrl } from '../../services/user';
 import { getAllStations, createStation, updateStation, changeStationStatus } from '../../services/station';
 import { getAllBatteries, getAllBatteriesComplete, getAllBatteryModels, getAllBatteryModelsComplete, defineBatteryModel, updateBatteryModel, getMonitoringStats, getBatteryStateById } from '../../services/battery';
@@ -184,7 +184,7 @@ const Admin = () => {
   const loadDashboardStats = async () => {
     try {
       setDashboardLoading(true);
-      const stats = await getDailyDashboard();
+      const stats = await getYearlyDashboard();
       console.log('Dashboard stats loaded:', stats);
       setDashboardStats(stats);
     } catch (e) {

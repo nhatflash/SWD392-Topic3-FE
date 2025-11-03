@@ -215,9 +215,9 @@ const RevenueChart = ({ chartData, loading = false, error = null, selectedPeriod
               onChange={(e) => onPeriodChange(e.target.value)}
               className="border border-gray-300 rounded-md px-3 py-1.5 text-sm bg-white hover:border-gray-400 focus:border-[#0028b8] focus:ring-1 focus:ring-[#0028b8] outline-none transition-colors"
             >
-              <option value="DAY">Ngày (7 ngày gần nhất)</option>
+              <option value="DAY">Ngày</option>
               <option value="MONTH">Tháng (12 tháng)</option>
-              <option value="YEAR">Năm (5 năm gần nhất)</option>
+              <option value="YEAR">Năm</option>
             </select>
           </div>
         )}

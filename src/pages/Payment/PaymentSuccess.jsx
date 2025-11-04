@@ -10,9 +10,16 @@ export default function PaymentSuccess() {
     // Get payment data from navigation state or sessionStorage
     const data = location.state || JSON.parse(sessionStorage.getItem('paymentResult') || 'null');
     
+    // If no data, show demo/placeholder instead of redirecting
     if (!data || !data.success) {
-      // No payment data or not success, redirect to orders
-      navigate('/driver/my-orders', { replace: true });
+      // Set demo data for testing - allows direct URL access
+      setPaymentData({
+        success: true,
+        message: 'Thanh toán thành công',
+        transactionId: sessionStorage.getItem('pendingPaymentTransaction') || 'N/A',
+        amount: null,
+        isDemo: true
+      });
       return;
     }
 

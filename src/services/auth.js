@@ -6,7 +6,7 @@ const BASE_URL =
   import.meta.env.VITE_API_URL ||
   (import.meta.env.DEV
     ? 'http://localhost:8080' // Khi chạy npm run dev
-    : 'https://czf23bx8-8080.asse.devtunnels.ms'); // fallback khi build mà quên set env
+    : 'https://9gjwld5d-8080.asse.devtunnels.ms'); // fallback khi build mà quên set env
 
 const API = axios.create({
 	baseURL: BASE_URL,

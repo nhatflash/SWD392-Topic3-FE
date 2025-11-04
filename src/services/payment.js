@@ -1,6 +1,23 @@
 import API from './auth';
 
 /**
+ * Check payment status by transaction ID
+ * @param {string} transactionId - UUID of the swap transaction
+ * @returns {Promise<Object>} Payment status result
+ */
+export async function checkPaymentStatus(transactionId) {
+  try {
+    // Since we don't have direct API, we'll use the stored result
+    // This is a workaround until backend provides payment status API
+    const res = await API.get(`/api/transactions/${transactionId}`);
+    return res?.data?.data;
+  } catch (error) {
+    console.error('Error checking payment status:', error);
+    throw error;
+  }
+}
+
+/**
  * Payment Processing APIs
  * Handles payment for battery swap transactions
  */
@@ -68,24 +85,4 @@ export function getPaymentMethodText(method) {
     CASH: 'Tiền mặt'
   };
   return methodMap[method] || method;
-}
-
-/**
- * Parse VNPay return parameters from URL
- * Used on the return page after VNPay redirect
- * @param {URLSearchParams} searchParams - URL search parameters
- * @returns {Object} Parsed payment result
- */
-export function parseVNPayReturn(searchParams) {
-  const responseCode = searchParams.get('vnp_ResponseCode');
-  const transactionId = searchParams.get('vnp_TxnRef');
-  const amount = searchParams.get('vnp_Amount');
-  
-  return {
-    success: responseCode === '00',
-    responseCode,
-    transactionId,
-    amount: amount ? parseInt(amount) / 100 : null, // VNPay returns amount in cents
-    message: responseCode === '00' ? 'Thanh toán thành công' : 'Thanh toán thất bại'
-  };
 }

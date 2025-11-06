@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
+import confetti from 'canvas-confetti';
 import Header from '../../../components/Header';
 import { getBatteryModels } from '../../../services/battery';
 import { getOperationalStations } from '../../../services/station';
@@ -18,6 +19,19 @@ const BookSwapPage = () => {
   const [selectedModel, setSelectedModel] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const step4Ref = useRef(null);
+
+  // Auto scroll to step 4 when entering that step
+  useEffect(() => {
+    if (step === 4 && step4Ref.current) {
+      setTimeout(() => {
+        step4Ref.current?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }, 100);
+    }
+  }, [step]);
 
   // Step 1: Load vehicles when page loads
   useEffect(() => {
@@ -96,8 +110,54 @@ const BookSwapPage = () => {
       };
       
       await createScheduledSwap(payload);
-      Swal.fire('Thành công', 'Đã đặt lịch đổi pin! Vui lòng chờ nhân viên xác nhận. Mời bạn vào trang cá nhân -> đơn hàng của tôi để xem chi tiết', 'success');
-      navigate('/driver/my-orders');
+      
+      // 🎉 Confetti celebration!
+      const duration = 3000;
+      const animationEnd = Date.now() + duration;
+      const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
+
+      function randomInRange(min, max) {
+        return Math.random() * (max - min) + min;
+      }
+
+      const interval = setInterval(function() {
+        const timeLeft = animationEnd - Date.now();
+
+        if (timeLeft <= 0) {
+          return clearInterval(interval);
+        }
+
+        const particleCount = 50 * (timeLeft / duration);
+        
+        confetti({
+          ...defaults,
+          particleCount,
+          origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
+        });
+        confetti({
+          ...defaults,
+          particleCount,
+          origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
+        });
+      }, 250);
+
+      Swal.fire({
+        icon: 'success',
+        title: '🎉 Thành công!',
+        html: '<div style="font-size: 16px;">Đã đặt lịch đổi pin!<br/>Vui lòng chờ nhân viên xác nhận.<br/>Mời bạn vào <strong>Trang cá nhân → Đơn hàng của tôi</strong> để xem chi tiết</div>',
+        confirmButtonColor: '#0ea5e9',
+        confirmButtonText: 'Xem đơn hàng',
+        showCancelButton: true,
+        cancelButtonText: 'Đóng',
+        customClass: {
+          popup: 'animate-fadeIn'
+        }
+      }).then((result) => {
+        if (result.isConfirmed) {
+          navigate('/driver/my-orders');
+        }
+      });
+      
     } catch (err) {
       console.error('Failed to create swap transaction:', err);
       Swal.fire('Lỗi', err?.response?.data?.message || 'Không thể đặt lịch', 'error');
@@ -107,10 +167,10 @@ const BookSwapPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50">
       <Header />
       
-      <div className="pt-24 pb-12 px-4 max-w-4xl mx-auto">
+      <div className="pt-24 pb-12 px-4 max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <button
@@ -128,34 +188,26 @@ const BookSwapPage = () => {
 
         {/* Progress Bar - Outside Form */}
         <div className="mb-6">
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="bg-white rounded-lg shadow-md p-8">
             <div className="relative">
-              {/* Progress Line */}
-              <div className="absolute top-7 left-0 right-0 h-1 bg-gray-200 -z-10">
-                <div 
-                  className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-500 ease-in-out"
-                  style={{ width: `${((step - 1) / 3) * 100}%` }}
-                />
-              </div>
-              
               {/* Steps */}
-              <div className="flex justify-between items-start">
+              <div className="flex justify-between items-start relative">
                 {[
                   { num: 1, label: 'Chọn xe', icon: '🚗' },
                   { num: 2, label: 'Chọn trạm', icon: '🔋' },
                   { num: 3, label: 'Chọn model', icon: '⚡' },
                   { num: 4, label: 'Đặt lịch', icon: '📅' }
-                ].map((item) => (
-                  <div key={item.num} className="flex flex-col items-center" style={{ width: '25%' }}>
+                ].map((item, index) => (
+                  <div key={item.num} className="flex flex-col items-center relative z-10" style={{ width: '25%' }}>
                     {/* Circle */}
                     <div className={`
                       relative flex items-center justify-center w-14 h-14 rounded-full border-4 font-bold text-lg
-                      transition-all duration-300 transform
+                      transition-all duration-300 transform bg-white
                       ${step >= item.num 
-                        ? 'bg-gradient-to-br from-blue-500 to-blue-700 text-white border-blue-600 scale-110 shadow-lg' 
+                        ? 'bg-gradient-to-br from-blue-500 via-blue-600 to-purple-600 text-white border-blue-600 scale-110 shadow-lg' 
                         : 'bg-white text-gray-400 border-gray-300 hover:border-gray-400'
                       }
-                      ${step === item.num ? 'ring-4 ring-blue-200 animate-pulse' : ''}
+                      ${step === item.num ? 'ring-4 ring-blue-200 animate-pulseGlow' : ''}
                     `}>
                       {step > item.num ? (
                         <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -165,6 +217,18 @@ const BookSwapPage = () => {
                         <span className="text-2xl">{item.icon}</span>
                       )}
                     </div>
+                    
+                    {/* Connecting Line to Next Step */}
+                    {index < 3 && (
+                      <div className="absolute top-7 left-1/2 w-full h-1 -z-10">
+                        <div className="h-full bg-gray-200 w-full"></div>
+                        <div 
+                          className={`h-full absolute top-0 left-0 bg-gradient-to-r from-blue-400 via-blue-600 to-purple-600 animate-gradient transition-all duration-500 ease-in-out ${
+                            step > item.num ? 'w-full' : 'w-0'
+                          }`}
+                        ></div>
+                      </div>
+                    )}
                     
                     {/* Label */}
                     <div className="mt-3 text-center">
@@ -204,8 +268,16 @@ const BookSwapPage = () => {
             
             {loading && (
               <div className="flex flex-col items-center justify-center py-20">
-                <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mb-4"></div>
-                <p className="text-gray-600 text-lg">Đang tải dữ liệu...</p>
+                <div className="relative">
+                  <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mb-4"></div>
+                  <div className="absolute top-0 left-0 animate-ping rounded-full h-16 w-16 border-4 border-blue-400 opacity-30"></div>
+                </div>
+                <p className="text-gray-600 text-lg font-medium animate-pulse">Đang tải dữ liệu...</p>
+                <div className="mt-2 flex gap-1">
+                  <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                  <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                  <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                </div>
               </div>
             )}
           
@@ -217,20 +289,21 @@ const BookSwapPage = () => {
                 <p className="text-gray-600">Vui lòng chọn phương tiện cần đổi pin</p>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar p-2">
                 {vehicles.length > 0 ? (
-                  vehicles.map(vehicle => {
+                  vehicles.map((vehicle, index) => {
                     const vehicleKey = vehicle.vehicleId || vehicle.id;
                     const selectedKey = selectedVehicle?.vehicleId || selectedVehicle?.id;
                     const isSelected = selectedVehicle && selectedKey === vehicleKey;
                     return (
                       <button
                         key={vehicleKey}
-                        className={`group relative border-2 rounded-xl p-5 text-left transition-all duration-200 transform hover:scale-105 hover:shadow-xl ${
+                        className={`group relative border-2 rounded-xl p-5 text-left transition-all duration-200 animate-flyIn ${
                           isSelected 
                             ? 'bg-gradient-to-br from-blue-50 to-blue-100 border-blue-500 shadow-lg' 
-                            : 'bg-white hover:bg-gray-50 border-gray-200'
+                            : 'bg-white hover:bg-gray-50 border-gray-200 hover:shadow-xl hover:-translate-y-1'
                         }`}
+                        style={{ animationDelay: `${index * 100}ms` }}
                         onClick={() => setSelectedVehicle(vehicle)}
                       >
                         {isSelected && (
@@ -314,19 +387,20 @@ const BookSwapPage = () => {
                 </p>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                {filteredStations.map(station => {
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar p-2">
+                {filteredStations.map((station, index) => {
                   const stationKey = station.stationId || station.id;
                   const selectedKey = selectedStation?.stationId || selectedStation?.id;
                   const isSelected = selectedStation && selectedKey === stationKey;
                   return (
                     <button
                       key={stationKey}
-                      className={`group relative border-2 rounded-xl p-5 text-left transition-all duration-200 transform hover:scale-105 hover:shadow-xl ${
+                      className={`group relative border-2 rounded-xl p-5 text-left transition-all duration-200 animate-flyIn ${
                         isSelected 
                           ? 'bg-gradient-to-br from-blue-50 to-blue-100 border-blue-500 shadow-lg' 
-                          : 'bg-white hover:bg-gray-50 border-gray-200'
+                          : 'bg-white hover:bg-gray-50 border-gray-200 hover:shadow-xl hover:-translate-y-1'
                       }`}
+                      style={{ animationDelay: `${index * 100}ms` }}
                       onClick={() => setSelectedStation(station)}
                     >
                       {isSelected && (
@@ -392,23 +466,24 @@ const BookSwapPage = () => {
                 </p>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                {models.map(model => {
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar p-2">
+                {models.map((model, index) => {
                   const modelKey = model.modelId || model.batteryModelId || model.type;
                   const isCompatible = model.type === selectedVehicle?.batteryType;
                   const isSelected = selectedModel?.type === model.type;
                   
-                  let cardStyle = 'bg-white hover:bg-gray-50 border-gray-200 hover:scale-105 hover:shadow-xl';
+                  let cardStyle = 'bg-white hover:bg-gray-50 border-gray-200 hover:shadow-xl hover:-translate-y-1';
                   if (!isCompatible) {
                     cardStyle = 'bg-gray-100 border-gray-200 opacity-60 cursor-not-allowed';
                   } else if (isSelected) {
-                    cardStyle = 'bg-gradient-to-br from-blue-50 to-blue-100 border-blue-500 shadow-lg transform scale-105';
+                    cardStyle = 'bg-gradient-to-br from-blue-50 to-blue-100 border-blue-500 shadow-lg';
                   }
                   
                   return (
                     <button
                       key={modelKey}
-                      className={`group relative border-2 rounded-xl p-5 text-left transition-all duration-200 ${cardStyle}`}
+                      className={`group relative border-2 rounded-xl p-5 text-left transition-all duration-200 animate-flyIn ${cardStyle}`}
+                      style={{ animationDelay: `${index * 100}ms` }}
                       onClick={() => {
                         if (isCompatible) {
                           setSelectedModel(model);
@@ -498,7 +573,7 @@ const BookSwapPage = () => {
           
           {/* Step 4: Đặt lịch */}
           {!loading && step === 4 && (
-            <div className="animate-fadeIn">
+            <div ref={step4Ref} className="animate-fadeIn">
               <div className="mb-6">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Xác nhận đặt lịch</h2>
                 <p className="text-gray-600">Kiểm tra lại thông tin trước khi xác nhận</p>

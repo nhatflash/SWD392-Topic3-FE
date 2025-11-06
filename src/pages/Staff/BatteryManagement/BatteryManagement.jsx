@@ -193,7 +193,7 @@ const BatteryManagement = () => {
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Giá thuê</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Giá pin</label>
             <p class="font-semibold text-green-600">
               ${new Intl.NumberFormat('vi-VN', { 
                 style: 'currency', 
@@ -639,7 +639,7 @@ const BatteryManagement = () => {
                           <span>{battery.totalSwapCount || 0}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-500">Giá thuê:</span>
+                          <span className="text-gray-500">Giá pin:</span>
                           <span className="font-semibold text-green-600">
                             {new Intl.NumberFormat('vi-VN', { 
                               style: 'currency', 

@@ -316,7 +316,7 @@ const Admin = () => {
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Giá thuê</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Giá Pin</label>
             <p class="font-semibold text-green-600">${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(battery.rentalPrice || 0)}</p>
           </div>
 
@@ -1455,7 +1455,7 @@ const Admin = () => {
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lượt đổi</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày SX</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hết BH</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Giá thuê</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Giá pin</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ghi chú</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
                         </tr>

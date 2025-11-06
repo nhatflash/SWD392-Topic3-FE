@@ -106,7 +106,7 @@ const StationDetail = () => {
             <input id="warrantyExpiryDate" type="date" class="w-full px-3 py-2 border rounded" />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Giá thuê (VND) *</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Giá pin (VND) *</label>
             <input id="rentalPrice" type="number" min="0" step="1000" class="w-full px-3 py-2 border rounded" placeholder="VD: 50000" />
           </div>
           <div>
@@ -158,7 +158,7 @@ const StationDetail = () => {
           return false;
         }
         if (!rentalPrice || Number(rentalPrice) < 0) {
-          Swal.showValidationMessage('Vui lòng nhập giá thuê hợp lệ');
+          Swal.showValidationMessage('Vui lòng nhập Giá pin hợp lệ');
           return false;
         }
 

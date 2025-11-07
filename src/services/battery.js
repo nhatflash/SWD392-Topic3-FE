@@ -322,40 +322,38 @@ export async function getStaffBatteryInventoryPaginated(page = 1) {
       }
     }
     
-    // If ALL statuses failed and this is page 1, try fallback
+    // If ALL statuses failed and this is page 1, retry with delay
     if (allStatusesFailed && page === 1) {
-      console.log('🔄 All status APIs failed, trying fallback method...');
-      try {
-        // Fallback: Get all batteries and filter by station
-        const allBatteriesData = await getAllBatteriesComplete();
-        console.log('📊 Sample battery object:', allBatteriesData[0]);
-        console.log('🔍 Looking for stationId:', stationInfo.stationId);
-        console.log('🔍 Station name:', stationInfo.stationName);
-        
-        // Try multiple possible field names for station
-        const stationBatteries = allBatteriesData.filter(b => {
-          // Check all possible station reference fields
-          const matches = 
-            b.currentStationId === stationInfo.stationId ||
-            b.stationId === stationInfo.stationId ||
-            b.currentStationName === stationInfo.stationName ||
-            b.stationName === stationInfo.stationName;
+      console.log('⚠️ All status APIs failed on first attempt, retrying after delay...');
+      
+      // Wait 2 seconds before retry
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Retry all statuses once more
+      for (const status of statuses) {
+        try {
+          const res = await API.get(`/api/battery/station/${stationInfo.stationId}/status`, { 
+            params: { status, page } 
+          });
+          const batteries = res?.data?.data || [];
           
-          if (matches) {
-            console.log('✓ Battery matched:', b.batterySerial, b);
+          if (Array.isArray(batteries) && batteries.length > 0) {
+            allBatteries.push(...batteries);
+            allStatusesFailed = false; // At least one succeeded on retry
+            
+            if (batteries.length === 10) {
+              hasMore = true;
+            }
           }
-          return matches;
-        });
-        
-        console.log(`✅ Fallback successful: Found ${stationBatteries.length} batteries`);
-        
-        return {
-          batteries: stationBatteries,
-          hasMore: false,
-          stationInfo
-        };
-      } catch (fallbackError) {
-        console.error('❌ Fallback also failed:', fallbackError);
+        } catch (error) {
+          console.warn(`Retry failed for status ${status}:`, error?.response?.status || error.message);
+        }
+      }
+      
+      if (allStatusesFailed) {
+        console.error('❌ All retries failed. Backend API appears to be down.');
+      } else {
+        console.log('✅ Retry successful after delay');
       }
     }
     
@@ -515,7 +513,7 @@ export async function getBatteriesByStationComplete(stationId) {
     let currentPage = 1;
     let hasMore = true;
     let consecutiveErrors = 0;
-    const MAX_ERRORS = 2; // Stop after 2 consecutive errors
+    const MAX_ERRORS = 3; // Allow up to 3 retries
     
     while (hasMore && consecutiveErrors < MAX_ERRORS) {
       try {
@@ -538,43 +536,26 @@ export async function getBatteriesByStationComplete(stationId) {
         }
       } catch (pageError) {
         consecutiveErrors++;
-        console.warn(`Failed to load page ${currentPage} for station ${stationId}:`, pageError?.response?.status || pageError.message);
+        console.warn(`❌ Attempt ${consecutiveErrors}/${MAX_ERRORS} failed for page ${currentPage}:`, pageError?.response?.status || pageError.message);
         
-        // If first page fails with 500, try fallback: get all batteries and filter by station
-        if (currentPage === 1 && pageError?.response?.status === 500) {
-          console.log('🔄 API /battery/station/{id}/status failed, trying fallback...');
-          try {
-            // Fallback: Get ALL batteries and filter by station
-            const allBatteriesData = await getAllBatteriesComplete();
-            console.log('📊 Sample battery object:', allBatteriesData[0]);
-            console.log('🔍 Looking for stationId:', stationId);
-            
-            // Try multiple possible field names for station
-            const stationBatteries = allBatteriesData.filter(b => {
-              // Check all possible station reference fields
-              const matches = 
-                (b.currentStationId === stationId || b.stationId === stationId) && 
-                b.status === 'FULL';
-              
-              if (matches) {
-                console.log('✓ FULL battery matched:', b.batterySerial, b);
-              }
-              return matches;
-            });
-            
-            console.log(`✅ Fallback successful: Found ${stationBatteries.length} FULL batteries`);
-            return stationBatteries;
-          } catch (fallbackError) {
-            console.error('❌ Fallback also failed:', fallbackError);
-          }
+        // If this is a 500 error and we haven't exceeded max retries, wait and retry
+        if (pageError?.response?.status === 500 && consecutiveErrors < MAX_ERRORS) {
+          console.log(`⏳ Waiting 2 seconds before retry...`);
+          await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+          // Don't increment consecutiveErrors yet - the retry will determine success/failure
+          consecutiveErrors--; // Undo the increment so we can retry
+        } else {
+          // Other errors or exceeded retries - stop pagination
+          hasMore = false;
         }
-        
-        // Stop pagination
-        hasMore = false;
       }
     }
     
-    console.log(`Loaded ${allBatteries.length} FULL batteries from station ${stationId} (${currentPage} pages)`);
+    if (allBatteries.length === 0 && consecutiveErrors >= MAX_ERRORS) {
+      console.error(`⚠️ Failed to load any batteries after ${MAX_ERRORS} attempts. Backend API may be down.`);
+    }
+    
+    console.log(`Loaded ${allBatteries.length} FULL batteries from station ${stationId} (${currentPage} pages, ${consecutiveErrors} errors)`);
     return allBatteries;
   } catch (error) {
     console.error('Failed to get all batteries by station:', error);

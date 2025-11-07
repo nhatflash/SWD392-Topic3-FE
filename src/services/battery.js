@@ -322,38 +322,47 @@ export async function getStaffBatteryInventoryPaginated(page = 1) {
       }
     }
     
-    // If ALL statuses failed and this is page 1, retry with delay
+    // If ALL statuses failed and this is page 1, retry with exponential backoff
     if (allStatusesFailed && page === 1) {
-      console.log('⚠️ All status APIs failed on first attempt, retrying after delay...');
+      console.log('⚠️ All status APIs failed on first attempt, retrying with exponential backoff...');
       
-      // Wait 2 seconds before retry
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const MAX_RETRY_ATTEMPTS = 5;
       
-      // Retry all statuses once more
-      for (const status of statuses) {
-        try {
-          const res = await API.get(`/api/battery/station/${stationInfo.stationId}/status`, { 
-            params: { status, page } 
-          });
-          const batteries = res?.data?.data || [];
-          
-          if (Array.isArray(batteries) && batteries.length > 0) {
-            allBatteries.push(...batteries);
-            allStatusesFailed = false; // At least one succeeded on retry
+      for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS && allStatusesFailed; attempt++) {
+        // Exponential backoff: 2s, 3s, 4s, 5s, 6s
+        const delayMs = 1000 * (attempt + 1);
+        console.log(`⏳ Retry attempt ${attempt}/${MAX_RETRY_ATTEMPTS}, waiting ${delayMs}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        
+        // Retry all statuses
+        for (const status of statuses) {
+          try {
+            const res = await API.get(`/api/battery/station/${stationInfo.stationId}/status`, { 
+              params: { status, page } 
+            });
+            const batteries = res?.data?.data || [];
             
-            if (batteries.length === 10) {
-              hasMore = true;
+            if (Array.isArray(batteries) && batteries.length > 0) {
+              allBatteries.push(...batteries);
+              allStatusesFailed = false; // At least one succeeded on retry
+              
+              if (batteries.length === 10) {
+                hasMore = true;
+              }
             }
+          } catch (error) {
+            console.warn(`Attempt ${attempt} failed for status ${status}:`, error?.response?.status || error.message);
           }
-        } catch (error) {
-          console.warn(`Retry failed for status ${status}:`, error?.response?.status || error.message);
+        }
+        
+        if (!allStatusesFailed) {
+          console.log(`✅ Retry successful on attempt ${attempt}`);
+          break;
         }
       }
       
       if (allStatusesFailed) {
-        console.error('❌ All retries failed. Backend API appears to be down.');
-      } else {
-        console.log('✅ Retry successful after delay');
+        console.error('❌ All retries exhausted. Backend API appears to be down.');
       }
     }
     
@@ -512,50 +521,65 @@ export async function getBatteriesByStationComplete(stationId) {
     const allBatteries = [];
     let currentPage = 1;
     let hasMore = true;
-    let consecutiveErrors = 0;
-    const MAX_ERRORS = 3; // Allow up to 3 retries
+    const MAX_RETRY_PER_PAGE = 5; // Retry up to 5 times per page
     
-    while (hasMore && consecutiveErrors < MAX_ERRORS) {
-      try {
-        const batteries = await getBatteriesByStationAndStatus(stationId, 'FULL', currentPage);
-        
-        // Reset error counter on success
-        consecutiveErrors = 0;
-        
-        if (batteries.length === 0) {
-          hasMore = false;
-        } else {
-          allBatteries.push(...batteries);
+    while (hasMore) {
+      let pageSuccess = false;
+      let lastError = null;
+      
+      // Retry logic with exponential backoff for each page
+      for (let attempt = 1; attempt <= MAX_RETRY_PER_PAGE; attempt++) {
+        try {
+          const batteries = await getBatteriesByStationAndStatus(stationId, 'FULL', currentPage);
           
-          // If we got less than 10 batteries, we've reached the end
-          if (batteries.length < 10) {
+          // Success!
+          pageSuccess = true;
+          
+          if (batteries.length === 0) {
             hasMore = false;
           } else {
-            currentPage++;
+            allBatteries.push(...batteries);
+            
+            // If we got less than 10 batteries, we've reached the end
+            if (batteries.length < 10) {
+              hasMore = false;
+            } else {
+              currentPage++;
+            }
+          }
+          break; // Success, exit retry loop
+          
+        } catch (pageError) {
+          lastError = pageError;
+          const isServerError = pageError?.response?.status === 500;
+          
+          if (isServerError && attempt < MAX_RETRY_PER_PAGE) {
+            // Exponential backoff: 2s, 3s, 4s, 5s, 6s
+            const delayMs = 1000 * (attempt + 1);
+            console.warn(`❌ Attempt ${attempt}/${MAX_RETRY_PER_PAGE} failed for page ${currentPage} (500 error)`);
+            console.log(`⏳ Waiting ${delayMs}ms before retry...`);
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+          } else {
+            // Non-500 error or exhausted retries
+            console.error(`❌ Failed after ${attempt} attempts for page ${currentPage}:`, pageError?.response?.status || pageError.message);
+            break;
           }
         }
-      } catch (pageError) {
-        consecutiveErrors++;
-        console.warn(`❌ Attempt ${consecutiveErrors}/${MAX_ERRORS} failed for page ${currentPage}:`, pageError?.response?.status || pageError.message);
-        
-        // If this is a 500 error and we haven't exceeded max retries, wait and retry
-        if (pageError?.response?.status === 500 && consecutiveErrors < MAX_ERRORS) {
-          console.log(`⏳ Waiting 2 seconds before retry...`);
-          await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
-          // Don't increment consecutiveErrors yet - the retry will determine success/failure
-          consecutiveErrors--; // Undo the increment so we can retry
-        } else {
-          // Other errors or exceeded retries - stop pagination
-          hasMore = false;
-        }
+      }
+      
+      // If page failed after all retries, stop pagination
+      if (!pageSuccess) {
+        console.error(`⚠️ Failed to load page ${currentPage} after ${MAX_RETRY_PER_PAGE} attempts. Stopping.`);
+        hasMore = false;
       }
     }
     
-    if (allBatteries.length === 0 && consecutiveErrors >= MAX_ERRORS) {
-      console.error(`⚠️ Failed to load any batteries after ${MAX_ERRORS} attempts. Backend API may be down.`);
+    if (allBatteries.length === 0) {
+      console.error(`⚠️ No batteries loaded for station ${stationId}. Backend API may be down.`);
+    } else {
+      console.log(`✅ Loaded ${allBatteries.length} FULL batteries from station ${stationId} (${currentPage} pages)`);
     }
     
-    console.log(`Loaded ${allBatteries.length} FULL batteries from station ${stationId} (${currentPage} pages, ${consecutiveErrors} errors)`);
     return allBatteries;
   } catch (error) {
     console.error('Failed to get all batteries by station:', error);

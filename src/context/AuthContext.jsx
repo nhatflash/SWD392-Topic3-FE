@@ -123,8 +123,10 @@ export const AuthProvider = ({ children }) => {
         setIsAuthenticated(true);
       }
     } else {
+      // No token - user is not logged in, this is normal for public pages
       setUser(null);
       setIsAuthenticated(false);
+      // Don't show any error - user just hasn't logged in yet
     }
 
     // Setup interval to check token expiry and proactively refresh

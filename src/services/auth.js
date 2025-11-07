@@ -91,12 +91,22 @@ API.interceptors.response.use(
 
 			const refreshToken = getRefreshToken();
 			if (!refreshToken) {
-				// No refresh token, logout
+				// No refresh token - user was never logged in or already logged out
 				isRefreshing = false;
 				clearTokens();
-				console.error('❌ Token refresh failed: No refresh token available. Redirecting to login...');
-				alert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-				window.location.href = '/login';
+				console.error('❌ Token refresh failed: No refresh token available.');
+				
+				// Check if we're on a public page that doesn't require auth
+				const publicPaths = ['/', '/mainpage', '/stations', '/login', '/register'];
+				const currentPath = window.location.pathname;
+				const isPublicPage = publicPaths.some(path => currentPath === path || currentPath.startsWith('/stations/'));
+				
+				if (!isPublicPage) {
+					// Only redirect and alert if on a protected page
+					alert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+					window.location.href = '/login';
+				}
+				
 				return Promise.reject(error);
 			}
 
@@ -125,8 +135,18 @@ API.interceptors.response.use(
 				console.error('❌ [Auto Refresh] Failed:', err?.response?.data || err?.message);
 				processQueue(err, null);
 				clearTokens();
-				alert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-				window.location.href = '/login';
+				
+				// Check if we're on a public page
+				const publicPaths = ['/', '/mainpage', '/stations', '/login', '/register'];
+				const currentPath = window.location.pathname;
+				const isPublicPage = publicPaths.some(path => currentPath === path || currentPath.startsWith('/stations/'));
+				
+				if (!isPublicPage) {
+					// Only redirect and alert if on a protected page
+					alert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+					window.location.href = '/login';
+				}
+				
 				return Promise.reject(err);
 			} finally {
 				isRefreshing = false;

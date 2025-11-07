@@ -296,6 +296,7 @@ export async function getStaffBatteryInventoryPaginated(page = 1) {
     const statuses = ['FULL', 'IN_USE', 'CHARGING', 'MAINTENANCE', 'FAULTY', 'RETIRED'];
     const allBatteries = [];
     let hasMore = false;
+    let allStatusesFailed = true;
     
     // Load batteries for each status SEQUENTIALLY to avoid overwhelming backend
     for (const status of statuses) {
@@ -304,6 +305,8 @@ export async function getStaffBatteryInventoryPaginated(page = 1) {
           params: { status, page } 
         });
         const batteries = res?.data?.data || [];
+        
+        allStatusesFailed = false; // At least one status succeeded
         
         if (Array.isArray(batteries) && batteries.length > 0) {
           allBatteries.push(...batteries);
@@ -316,6 +319,27 @@ export async function getStaffBatteryInventoryPaginated(page = 1) {
       } catch (error) {
         console.warn(`Failed to get batteries for status ${status}:`, error?.response?.status || error.message);
         // Continue with other statuses even if one fails
+      }
+    }
+    
+    // If ALL statuses failed and this is page 1, try fallback
+    if (allStatusesFailed && page === 1) {
+      console.log('🔄 All status APIs failed, trying fallback method...');
+      try {
+        // Fallback: Get all batteries and filter by station
+        const allBatteriesData = await getAllBatteriesComplete();
+        const stationBatteries = allBatteriesData.filter(b => 
+          b.currentStationId === stationInfo.stationId
+        );
+        console.log(`✅ Fallback successful: Found ${stationBatteries.length} batteries`);
+        
+        return {
+          batteries: stationBatteries,
+          hasMore: false,
+          stationInfo
+        };
+      } catch (fallbackError) {
+        console.error('❌ Fallback also failed:', fallbackError);
       }
     }
     
@@ -500,12 +524,23 @@ export async function getBatteriesByStationComplete(stationId) {
         consecutiveErrors++;
         console.warn(`Failed to load page ${currentPage} for station ${stationId}:`, pageError?.response?.status || pageError.message);
         
-        // If first page fails, throw error
-        if (currentPage === 1) {
-          throw pageError;
+        // If first page fails with 500, try fallback: get all batteries and filter by station
+        if (currentPage === 1 && pageError?.response?.status === 500) {
+          console.log('🔄 API /battery/station/{id}/status failed, trying fallback...');
+          try {
+            // Fallback: Get ALL batteries and filter by currentStationName
+            const allBatteriesData = await getAllBatteriesComplete();
+            const stationBatteries = allBatteriesData.filter(b => 
+              b.currentStationId === stationId && b.status === 'FULL'
+            );
+            console.log(`✅ Fallback successful: Found ${stationBatteries.length} batteries`);
+            return stationBatteries;
+          } catch (fallbackError) {
+            console.error('❌ Fallback also failed:', fallbackError);
+          }
         }
         
-        // Otherwise, stop pagination but return what we have
+        // Stop pagination
         hasMore = false;
       }
     }

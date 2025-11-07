@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getAllUnconfirmedSwaps, confirmScheduledSwap, getSwapStatusText } from '../../../services/swapTransaction';
-import { getBatteriesByStationComplete } from '../../../services/battery';
+import { getStaffBatteriesComplete } from '../../../services/battery';
 import { getVehiclesByDriverId } from '../../../services/vehicle';
 import { getStationById } from '../../../services/station';
 import { getUsers } from '../../../services/admin';
@@ -29,14 +29,9 @@ const SwapConfirmationTab = ({ onUpdate }) => {
         return isUnconfirmed;
       });
       
-      // Get station ID from first swap to load station-specific batteries
-      let stationId = null;
-      if (unconfirmedSwaps.length > 0) {
-        stationId = unconfirmedSwaps[0].stationId;
-      }
-      
-      // Load batteries for this station only - get ALL batteries (all pages)
-      const batteriesData = stationId ? await getBatteriesByStationComplete(stationId) : [];
+      // Load batteries for STAFF's own station - get ALL batteries (all pages)
+      // Staff can only approve swaps for their assigned station
+      const batteriesData = await getStaffBatteriesComplete();
       
       // Enrich swaps with driver info and fetch vehicle/station
       const enrichedSwaps = await Promise.all(

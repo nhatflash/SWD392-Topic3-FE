@@ -238,7 +238,24 @@ export async function getCurrentStaffStation() {
 }
 
 /**
- * Get battery inventory for current staff's station
+ * Get batteries for STAFF's own station by status
+ * Role: STAFF (backend auto-detects station from authenticated user)
+ * @param {string} status - BatteryStatus enum: FULL, IN_USE, CHARGING, MAINTENANCE, FAULTY, RETIRED
+ * @param {number} page - Page index (1-based)
+ * Note: Backend endpoint does NOT accept stationId - it auto-detects from JWT auth
+ */
+export async function getStaffBatteryByStatus(status, page = 1) {
+  const res = await API.get('/api/battery/station/status', {
+    params: { status, page }
+  });
+  const data = res?.data?.data;
+  if (Array.isArray(data)) return data;
+  if (data?.content && Array.isArray(data.content)) return data.content;
+  return [];
+}
+
+/**
+ * Get battery inventory for current staff's station (all statuses, all pages)
  * @returns {Promise<Array>} Array of batteries for all statuses
  */
 export async function getStaffBatteryInventory() {
@@ -256,7 +273,9 @@ export async function getStaffBatteryInventory() {
     
     const promises = statuses.map(async (status) => {
       try {
-        const res = await API.get(`/api/battery/station/${stationInfo.stationId}/status`, { 
+        // Backend expects: GET /api/battery/station/status?status=FULL&page=1
+        // Backend auto-detects stationId from authenticated staff user
+        const res = await API.get('/api/battery/station/status', { 
           params: { status, page: 1 } 
         });
         return res?.data?.data || [];
@@ -303,7 +322,9 @@ export async function getStaffBatteryInventoryPaginated(page = 1) {
     // Backend uses LIST_SIZE = 10, so we'll get page data for each status
     const promises = statuses.map(async (status) => {
       try {
-        const res = await API.get(`/api/battery/station/${stationInfo.stationId}/status`, { 
+        // Backend expects: GET /api/battery/station/status?status=FULL&page=1
+        // Backend auto-detects stationId from authenticated staff user
+        const res = await API.get('/api/battery/station/status', { 
           params: { status, page } 
         });
         const batteries = res?.data?.data || [];
@@ -363,7 +384,9 @@ export async function getStaffBatteryTotalCount() {
     while (hasMore) {
       const promises = statuses.map(async (status) => {
         try {
-          const res = await API.get(`/api/battery/station/${stationInfo.stationId}/status`, { 
+          // Backend expects: GET /api/battery/station/status?status=FULL&page=1
+          // Backend auto-detects stationId from authenticated staff user
+          const res = await API.get('/api/battery/station/status', { 
             params: { status, page: currentPage } 
           });
           return res?.data?.data || [];
@@ -442,56 +465,27 @@ export async function getBatteryModelsTotalCount() {
 // or use inventory endpoint if we have staff access to that station
 
 /**
- * Get batteries for a specific station by status
- * Role: Requires authentication
- * @param {string} stationId - Station UUID
- * @param {string} status - BatteryStatus enum: FULL, IN_USE, CHARGING, MAINTENANCE, FAULTY, RETIRED
- * @param {number} page - Page index (1-based)
+ * Get ALL FULL batteries for STAFF's own station (all pages)
+ * For walk-in creation - needs all available batteries from staff's station
+ * Role: STAFF (backend auto-detects station from authenticated user)
  */
-export async function getBatteriesByStationAndStatus(stationId, status, page = 1) {
-  const res = await API.get(`/api/battery/station/${stationId}/status`, {
-    params: { status, page }
-  });
-  const data = res?.data?.data;
-  if (Array.isArray(data)) return data;
-  if (data?.content && Array.isArray(data.content)) return data.content;
-  return [];
-}
-
-/**
- * Get all batteries for a specific station (FULL status = ready to use)
- * @param {string} stationId - Station UUID
- */
-export async function getBatteriesByStation(stationId) {
-  // Get batteries with FULL status (ready to rent/swap)
+export async function getStaffBatteriesComplete() {
   try {
-    return await getBatteriesByStationAndStatus(stationId, 'FULL', 1);
-  } catch (error) {
-    console.error('Failed to get batteries by station:', error);
-    return [];
-  }
-}
-
-/**
- * Get ALL batteries for a specific station with FULL status (all pages)
- * For swap confirmation and walk-in creation - needs all available batteries
- * @param {string} stationId - Station UUID
- */
-export async function getBatteriesByStationComplete(stationId) {
-  try {
+    console.log(`🔍 Loading all FULL batteries for staff's station...`);
+    
     const allBatteries = [];
     let currentPage = 1;
     let hasMore = true;
     
     while (hasMore) {
-      const batteries = await getBatteriesByStationAndStatus(stationId, 'FULL', currentPage);
+      const batteries = await getStaffBatteryByStatus('FULL', currentPage);
       
       if (batteries.length === 0) {
         hasMore = false;
       } else {
         allBatteries.push(...batteries);
         
-        // If we got less than 10 batteries, we've reached the end
+        // If we got less than 10 batteries (LIST_SIZE), we've reached the end
         if (batteries.length < 10) {
           hasMore = false;
         } else {
@@ -500,8 +494,48 @@ export async function getBatteriesByStationComplete(stationId) {
       }
     }
     
-    console.log(`Loaded ${allBatteries.length} FULL batteries from station ${stationId} (${currentPage} pages)`);
+    console.log(`✅ Loaded ${allBatteries.length} FULL batteries from ${currentPage} pages`);
     return allBatteries;
+  } catch (error) {
+    console.error('Failed to get staff batteries complete:', error);
+    return [];
+  }
+}
+
+/**
+ * Get ALL batteries for a specific station with FULL status (all pages)
+ * For swap confirmation - when approving bookings that may be from different stations
+ * Note: Backend has NO endpoint to get batteries by stationId, so we must filter client-side
+ * @param {string} stationId - Station UUID
+ */
+export async function getBatteriesByStationComplete(stationId) {
+  try {
+    console.log(`🔍 Loading FULL batteries for station ${stationId}...`);
+    
+    // Backend doesn't have endpoint to get batteries by specific stationId
+    // So we need to:
+    // 1. Get station info to get station name
+    // 2. Get ALL batteries and filter by station name + FULL status
+    
+    // Import station service dynamically to avoid circular dependency
+    const { getStationById } = await import('./station');
+    const station = await getStationById(stationId);
+    const stationName = station?.stationName;
+    
+    if (!stationName) {
+      console.warn(`⚠️ Station not found for ID: ${stationId}`);
+      return [];
+    }
+    
+    const allBatteries = await getAllBatteriesComplete();
+    
+    // Filter by currentStationName (backend returns station name, not ID)
+    const stationBatteries = allBatteries.filter(battery => 
+      battery.currentStationName === stationName && battery.status === 'FULL'
+    );
+    
+    console.log(`✅ Found ${stationBatteries.length} FULL batteries for station "${stationName}"`);
+    return stationBatteries;
   } catch (error) {
     console.error('Failed to get all batteries by station:', error);
     return [];
@@ -509,34 +543,43 @@ export async function getBatteriesByStationComplete(stationId) {
 }
 
 /**
- * Get ALL batteries for a specific station (all statuses)
+ * Get ALL batteries for STAFF's own station (all statuses, all pages)
  * For Battery Management page - shows all batteries regardless of status
- * @param {string} stationId - Station UUID
+ * Role: STAFF (backend auto-detects station from authenticated user)
  */
-export async function getAllBatteriesByStation(stationId) {
+export async function getStaffAllBatteries() {
   try {
     // Get batteries with all possible statuses
     const statuses = ['FULL', 'IN_USE', 'CHARGING', 'MAINTENANCE', 'FAULTY', 'RETIRED'];
     const allBatteries = [];
     
-    // Fetch batteries for each status in parallel
-    const promises = statuses.map(status => 
-      getBatteriesByStationAndStatus(stationId, status, 1).catch(() => [])
-    );
-    
-    const results = await Promise.all(promises);
-    
-    // Combine all results
-    results.forEach(batteries => {
-      if (Array.isArray(batteries)) {
-        allBatteries.push(...batteries);
+    // Fetch batteries for each status
+    for (const status of statuses) {
+      let currentPage = 1;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const batteries = await getStaffBatteryByStatus(status, currentPage);
+        
+        if (batteries.length === 0) {
+          hasMore = false;
+        } else {
+          allBatteries.push(...batteries);
+          
+          // If we got less than 10 batteries (LIST_SIZE), we've reached the end
+          if (batteries.length < 10) {
+            hasMore = false;
+          } else {
+            currentPage++;
+          }
+        }
       }
-    });
+    }
     
-    console.log(`Total batteries found for station ${stationId}:`, allBatteries.length);
+    console.log(`Total batteries found for staff's station:`, allBatteries.length);
     return allBatteries;
   } catch (error) {
-    console.error('Failed to get all batteries by station:', error);
+    console.error('Failed to get all staff batteries:', error);
     return [];
   }
 }

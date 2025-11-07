@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createWalkInSwap } from '../../../services/swapTransaction';
-import { getAllBatteriesComplete, getBatteriesByStationComplete } from '../../../services/battery';
+import { getStaffBatteriesComplete } from '../../../services/battery';
 import { getUsers } from '../../../services/admin';
 import { getVehiclesByDriverId } from '../../../services/vehicle';
 
@@ -10,7 +10,6 @@ const CreateWalkInTab = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [stationId, setStationId] = useState(null);
 
   const [formData, setFormData] = useState({
     driverId: '',
@@ -34,10 +33,10 @@ const CreateWalkInTab = () => {
       const driversOnly = usersData.filter(u => u.role === 'DRIVER');
       setDrivers(driversOnly);
       
-      // For walk-in, we'll load batteries when vehicle is selected and we have station context
-      // For now, load ALL batteries as fallback (not paginated)
-      const batteriesData = await getAllBatteriesComplete();
-      setBatteries(batteriesData.filter(b => b.status === 'FULL'));
+      // For walk-in, load FULL batteries from staff's own station
+      // Backend auto-detects station from authenticated staff user
+      const batteriesData = await getStaffBatteriesComplete();
+      setBatteries(batteriesData);
     } catch (e) {
       setError('Không thể tải dữ liệu: ' + (e?.message || ''));
     } finally {
@@ -45,37 +44,9 @@ const CreateWalkInTab = () => {
     }
   };
 
-  // Load batteries for specific station when vehicle is selected
-  const handleVehicleChange = async (vehicleId) => {
+  // No need to reload batteries when vehicle changes since we load staff's station batteries already
+  const handleVehicleChange = (vehicleId) => {
     setFormData(prev => ({ ...prev, vehicleId, batteryIds: [] }));
-    
-    if (!vehicleId) return;
-    
-    // Try to load station-specific batteries
-    // For walk-in scenario, we assume staff is creating for their own station
-    // Get station context from existing swap transactions or staff context
-    try {
-      // Import station staff service to get staff station
-      const { getAllUnconfirmedSwaps } = await import('../../../services/swapTransaction');
-      const swaps = await getAllUnconfirmedSwaps();
-      
-      if (swaps && swaps.length > 0) {
-        // Get station ID from existing swaps (staff's station)
-        const staffStationId = swaps[0]?.stationId;
-        if (staffStationId) {
-          const stationBatteries = await getBatteriesByStationComplete(staffStationId);
-          setBatteries(stationBatteries.filter(b => b.status === 'FULL'));
-          setStationId(staffStationId);
-          return;
-        }
-      }
-    } catch (e) {
-      console.warn('Could not load station-specific batteries, using all batteries:', e);
-    }
-    
-    // Fallback to all batteries if station detection fails
-    const allBatteries = await getAllBatteriesComplete();
-    setBatteries(allBatteries.filter(b => b.status === 'FULL'));
   };
 
   const handleDriverChange = async (driverId) => {
@@ -111,13 +82,22 @@ const CreateWalkInTab = () => {
     }
   };
 
-  const handleToggleBattery = (batteryId) => {
+  const handleToggleBattery = (batteryId, battery) => {
+    // Check if battery is unavailable
+    if (battery.status !== 'FULL') {
+      setError(`Pin này không khả dụng (Trạng thái: ${battery.status})`);
+      return;
+    }
+    
     setFormData(prev => ({
       ...prev,
       batteryIds: prev.batteryIds.includes(batteryId)
         ? prev.batteryIds.filter(id => id !== batteryId)
         : [...prev.batteryIds, batteryId]
     }));
+    
+    // Clear error when successfully selecting
+    setError('');
   };
 
   const handleSubmit = async (e) => {
@@ -283,31 +263,51 @@ const CreateWalkInTab = () => {
               </div>
             ) : (
               <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">
-                {availableBatteriesForVehicle.map(battery => (
-                  <div
-                    key={battery.batteryId || battery.id}
-                    onClick={() => handleToggleBattery(battery.batteryId || battery.id)}
-                    className={`
-                      p-4 border-2 rounded-lg cursor-pointer transition-all
-                      ${formData.batteryIds.includes(battery.batteryId || battery.id)
-                        ? 'border-green-500 bg-green-50'
-                        : 'border-gray-200 hover:border-gray-300 bg-white'
-                      }
-                    `}
-                  >
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="font-semibold text-gray-900">{battery.model}</p>
-                        <p className="text-sm text-gray-600">SN: {battery.serialNumber}</p>
+                {availableBatteriesForVehicle.map(battery => {
+                  const batteryId = battery.batteryId || battery.id;
+                  const isSelected = formData.batteryIds.includes(batteryId);
+                  const isUnavailable = battery.status !== 'FULL';
+                  
+                  return (
+                    <div
+                      key={batteryId}
+                      onClick={() => !isUnavailable && handleToggleBattery(batteryId, battery)}
+                      className={`
+                        p-4 border-2 rounded-lg transition-all
+                        ${isUnavailable
+                          ? 'border-gray-300 bg-gray-100 cursor-not-allowed opacity-60'
+                          : isSelected
+                            ? 'border-green-500 bg-green-50 cursor-pointer'
+                            : 'border-gray-200 hover:border-gray-300 bg-white cursor-pointer'
+                        }
+                      `}
+                    >
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className={`font-semibold ${isUnavailable ? 'text-gray-500' : 'text-gray-900'}`}>
+                            {battery.model}
+                          </p>
+                          <p className={`text-sm ${isUnavailable ? 'text-gray-400' : 'text-gray-600'}`}>
+                            SN: {battery.serialNumber}
+                            {isUnavailable && <span className="ml-2 text-red-500 font-medium">({battery.status})</span>}
+                          </p>
+                        </div>
+                        
+                        {isSelected && !isUnavailable && (
+                          <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                        
+                        {isUnavailable && (
+                          <svg className="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
                       </div>
-                      {formData.batteryIds.includes(battery.batteryId || battery.id) && (
-                        <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -327,7 +327,6 @@ const CreateWalkInTab = () => {
             type="button"
             onClick={() => {
               setFormData({ driverId: '', vehicleId: '', batteryIds: [], notes: '' });
-              setSelectedDriver(null);
               setDriverVehicles([]);
               setError('');
               setSuccess('');

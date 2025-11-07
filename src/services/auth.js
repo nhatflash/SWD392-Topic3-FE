@@ -58,6 +58,18 @@ const processQueue = (error, token = null) => {
 	failedQueue = [];
 };
 
+// List of public paths that don't require authentication
+const PUBLIC_PATHS = ['/', '/mainpage', '/stations', '/login', '/register'];
+
+// Check if current page is a public path
+function isPublicPage() {
+	const currentPath = window.location.pathname.toLowerCase();
+	return PUBLIC_PATHS.some(path => {
+		// Exact match or starts with the path (for sub-routes like /mainpage/HomePage)
+		return currentPath === path || currentPath.startsWith(path + '/');
+	});
+}
+
 API.interceptors.response.use(
 	response => response,
 	async error => {
@@ -94,9 +106,16 @@ API.interceptors.response.use(
 				// No refresh token, logout
 				isRefreshing = false;
 				clearTokens();
-				console.error('❌ Token refresh failed: No refresh token available. Redirecting to login...');
-				alert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-				window.location.href = '/login';
+				
+				// Only show alert and redirect if NOT on a public page
+				if (!isPublicPage()) {
+					console.error('❌ Token refresh failed: No refresh token available. Redirecting to login...');
+					alert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+					window.location.href = '/login';
+				} else {
+					console.log('ℹ️ 401 on public page - no action taken');
+				}
+				
 				return Promise.reject(error);
 			}
 
@@ -125,8 +144,15 @@ API.interceptors.response.use(
 				console.error('❌ [Auto Refresh] Failed:', err?.response?.data || err?.message);
 				processQueue(err, null);
 				clearTokens();
-				alert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-				window.location.href = '/login';
+				
+				// Only show alert and redirect if NOT on a public page
+				if (!isPublicPage()) {
+					alert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+					window.location.href = '/login';
+				} else {
+					console.log('ℹ️ Refresh failed on public page - no redirect');
+				}
+				
 				return Promise.reject(err);
 			} finally {
 				isRefreshing = false;
